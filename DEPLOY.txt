@@ -1,0 +1,85 @@
+COMO PUBLICAR NO RAILWAY
+========================
+
+PRE-REQUISITOS
+--------------
+- Conta no GitHub (github.com)
+- Conta no Railway (railway.app) — pode entrar com a conta do GitHub
+
+
+PASSO 1 — Criar o repositorio no GitHub
+----------------------------------------
+1. Acesse github.com e clique em "New repository"
+2. Nome sugerido: petshop-entregas
+3. Deixe como "Public" (necessario para o plano gratuito do Railway)
+4. Clique em "Create repository"
+5. Siga as instrucoes que o GitHub mostrar para enviar os arquivos
+   (voce pode usar o GitHub Desktop se preferir nao usar o terminal)
+
+
+PASSO 2 — Enviar os arquivos para o GitHub
+-------------------------------------------
+Opcao A — Pelo terminal (dentro da pasta petshop-railway):
+
+    git init
+    git add .
+    git commit -m "primeiro commit"
+    git branch -M main
+    git remote add origin https://github.com/SEU_USUARIO/petshop-entregas.git
+    git push -u origin main
+
+Opcao B — Pelo GitHub Desktop:
+    Arraste a pasta petshop-railway para o GitHub Desktop e publique.
+
+
+PASSO 3 — Criar o projeto no Railway
+--------------------------------------
+1. Acesse railway.app e clique em "New Project"
+2. Escolha "Deploy from GitHub repo"
+3. Autorize o Railway a acessar sua conta do GitHub
+4. Selecione o repositorio petshop-entregas
+5. O Railway detecta o Procfile automaticamente e inicia o deploy
+6. Aguarde cerca de 2 minutos ate o deploy concluir
+
+
+PASSO 4 — Configurar o volume de dados (IMPORTANTE)
+-----------------------------------------------------
+Sem isso, os dados sao apagados a cada novo deploy.
+
+1. No painel do Railway, clique no seu servico
+2. Va em "Volumes" e clique em "Add Volume"
+3. Mount path: /data
+4. Clique em "Add"
+5. Va em "Variables" e adicione:
+   DATA_DIR = /data
+6. O Railway reinicia o servico automaticamente
+
+
+PASSO 5 — Acessar o sistema
+-----------------------------
+1. No painel do Railway, clique em "Settings" > "Networking"
+2. Clique em "Generate Domain"
+3. O Railway gera um link no formato: https://petshop-entregas-xxxx.up.railway.app
+4. Compartilhe esse link com o pet shop
+
+
+OBSERVACAO SOBRE O PLANO GRATUITO
+-----------------------------------
+O Railway oferece 5 dolares de credito por mes no plano gratuito.
+Um servidor Flask simples como este consome em torno de 0,50 dolares por mes,
+entao os creditos duram bastante. Monitore pelo painel em "Usage".
+
+Se o servidor ficar sem uso por muito tempo, ele pode pausar.
+O primeiro acesso apos a pausa demora cerca de 30 segundos para acordar.
+Isso e normal no plano gratuito.
+
+
+BACKUP DOS DADOS
+-----------------
+Com o volume configurado, os dados ficam no arquivo /data/petshop.db no servidor.
+Para baixar o banco localmente, use o Railway CLI:
+
+    railway login
+    railway run python -c "import shutil; shutil.copy('/data/petshop.db', '.')"
+
+Ou baixe diretamente pelo painel em "Volumes" > "Browse Files".

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pet Shop — Gestao de Entregas</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- BARRA DE NAVEGACAO -->
+  <nav class="topbar">
+    <span class="topbar-brand">Pet Shop Entregas</span>
+
+    <a href="#" class="nav-link" data-page="pedidos">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M20 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1zM16 3H8l-2 4h12l-2-4z"/>
+      </svg>
+      Pedidos
+    </a>
+
+    <a href="#" class="nav-link" data-page="novo-pedido">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Novo pedido
+    </a>
+
+    <a href="#" class="nav-link" data-page="clientes">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m4-4a4 4 0 100-8 4 4 0 000 8z"/>
+      </svg>
+      Clientes
+    </a>
+
+    <a href="#" class="nav-link" data-page="entregadores">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 4a4 4 0 100 8 4 4 0 000-8zM6 20v-1a6 6 0 0112 0v1"/>
+      </svg>
+      Entregadores
+    </a>
+
+    <a href="#" class="nav-link" data-page="produtos">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v1a2 2 0 01-2 2M5 8v11a2 2 0 002 2h10a2 2 0 002-2V8"/>
+      </svg>
+      Produtos
+    </a>
+  </nav>
+
+  <!-- PAGINA: PEDIDOS -->
+  <div id="page-pedidos" class="page">
+    <div class="page-header">
+      <div class="page-title">Pedidos</div>
+      <div class="page-sub">Acompanhe e atualize o status de cada entrega</div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Total de pedidos</div>
+        <div class="metric-value" id="met-total">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Em rota</div>
+        <div class="metric-value blue" id="met-rota">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Concluidos</div>
+        <div class="metric-value green" id="met-concluidos">0</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <label for="filtro-status" style="font-size:13px;color:var(--text-2);font-weight:500;">Filtrar:</label>
+      <select id="filtro-status" onchange="renderPedidos()">
+        <option value="">Todos os status</option>
+        <option value="aguardando">Aguardando</option>
+        <option value="rota">Em rota</option>
+        <option value="concluido">Concluido</option>
+      </select>
+      <span class="count" id="pedidos-count"></span>
+    </div>
+
+    <div id="lista-pedidos"></div>
+  </div>
+
+  <!-- PAGINA: NOVO PEDIDO -->
+  <div id="page-novo-pedido" class="page">
+    <div class="page-header">
+      <div class="page-title">Novo pedido</div>
+      <div class="page-sub">Selecione o cliente, o entregador e adicione os itens</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Dados do pedido</div>
+      <div class="form-grid g2">
+        <div class="field">
+          <label for="np-cliente">Cliente *</label>
+          <select id="np-cliente"><option value="">Selecionar cliente...</option></select>
+        </div>
+        <div class="field">
+          <label for="np-entregador">Entregador *</label>
+          <select id="np-entregador"><option value="">Selecionar entregador...</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        Itens do pedido
+        <button class="btn btn-sm" onclick="adicionarItemRow()">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Adicionar item
+        </button>
+      </div>
+
+      <table class="items-tbl">
+        <thead>
+          <tr>
+            <th>Produto / descricao</th>
+            <th style="width:160px;">Tipo</th>
+            <th style="width:120px;">Quantidade</th>
+            <th style="width:90px;"></th>
+            <th style="width:36px;"></th>
+          </tr>
+        </thead>
+        <tbody id="np-itens-body"></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn" onclick="showPage('pedidos')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarNovoPedido()">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        Confirmar pedido
+      </button>
+    </div>
+  </div>
+
+  <!-- PAGINA: CLIENTES -->
+  <div id="page-clientes" class="page">
+    <div class="page-header">
+      <div class="page-title">Clientes</div>
+      <div class="page-sub">Cadastre e gerencie os clientes do pet shop</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cadastrar cliente</div>
+      <div class="form-grid g2">
+        <div class="field">
+          <label for="c-nome">Nome completo *</label>
+          <input id="c-nome" type="text" placeholder="Ex: Maria Silva">
+        </div>
+        <div class="field">
+          <label for="c-tel">Telefone *</label>
+          <input id="c-tel" type="text" placeholder="(00) 00000-0000">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="c-end">Endereco completo *</label>
+          <input id="c-end" type="text" placeholder="Rua, numero, bairro, cidade">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="salvarCliente()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          Salvar cliente
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Clientes cadastrados</div>
+      <div id="lista-clientes"></div>
+    </div>
+  </div>
+
+  <!-- PAGINA: ENTREGADORES -->
+  <div id="page-entregadores" class="page">
+    <div class="page-header">
+      <div class="page-title">Entregadores</div>
+      <div class="page-sub">Cadastre e gerencie os entregadores</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cadastrar entregador</div>
+      <div class="form-grid g2">
+        <div class="field">
+          <label for="e-nome">Nome completo *</label>
+          <input id="e-nome" type="text" placeholder="Ex: Joao Santos">
+        </div>
+        <div class="field">
+          <label for="e-tel">Telefone *</label>
+          <input id="e-tel" type="text" placeholder="(00) 00000-0000">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="salvarEntregador()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          Salvar entregador
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Entregadores cadastrados</div>
+      <div id="lista-entregadores"></div>
+    </div>
+  </div>
+
+  <!-- PAGINA: PRODUTOS -->
+  <div id="page-produtos" class="page">
+    <div class="page-header">
+      <div class="page-title">Produtos</div>
+      <div class="page-sub">Cadastre produtos para agilizar o lancamento de pedidos</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cadastrar produto</div>
+      <div class="form-grid g3">
+        <div class="field">
+          <label for="p-nome">Nome do produto *</label>
+          <input id="p-nome" type="text" placeholder="Ex: Racao Golden 15kg">
+        </div>
+        <div class="field">
+          <label for="p-unidade">Unidade de medida</label>
+          <select id="p-unidade">
+            <option value="kg">Quilograma (kg)</option>
+            <option value="un">Unidade (un)</option>
+            <option value="l">Litro (l)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-valor">Valor de referencia (R$)</label>
+          <input id="p-valor" type="number" step="0.01" min="0" placeholder="0,00">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="salvarProduto()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          Salvar produto
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Produtos cadastrados</div>
+      <div id="lista-produtos"></div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS (ordem importa: db antes dos modulos, nav por ultimo) -->
+  <script src="db.js"></script>
+  <script src="pedidos.js"></script>
+  <script src="novo-pedido.js"></script>
+  <script src="clientes.js"></script>
+  <script src="entregadores.js"></script>
+  <script src="produtos.js"></script>
+  <script src="nav.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,8 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "gunicorn servidor:app --bind 0.0.0.0:$PORT"
+healthcheckPath = "/ping"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
