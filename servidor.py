@@ -85,12 +85,16 @@ def ping():
 
 
 # ─────────────────────────────────────────────
-# PAGINA PRINCIPAL
+# PAGINA PRINCIPAL E ARQUIVOS ESTATICOS
 # ─────────────────────────────────────────────
 
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
+
+@app.route('/<path:filename>')
+def static_files(filename):
+    return send_from_directory('static', filename)
 
 
 # ─────────────────────────────────────────────
