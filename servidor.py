@@ -142,6 +142,10 @@ def init_db():
             );
         """)
 
+        # Migracao: adiciona coluna registrado_por se ainda nao existir
+        colunas = [row[1] for row in conn.execute("PRAGMA table_info(pedidos)").fetchall()]
+        if "registrado_por" not in colunas:
+            conn.execute("ALTER TABLE pedidos ADD COLUMN registrado_por TEXT")
 
 # ─────────────────────────────────────────────
 # PING
