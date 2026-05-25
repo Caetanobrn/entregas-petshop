@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pet Shop Entregas — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #F5F2EE;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .box {
+      background: #fff;
+      border: 1px solid #E2DDD8;
+      border-radius: 14px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: #EEF4EB;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+    }
+
+    .logo-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1C1810;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-sub {
+      font-size: 13px;
+      color: #A89F96;
+      margin-top: 2px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #6B6158;
+      margin-bottom: 5px;
+      letter-spacing: 0.2px;
+    }
+
+    input {
+      width: 100%;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      padding: 9px 13px;
+      background: #F9F7F5;
+      border: 1px solid #E2DDD8;
+      border-radius: 8px;
+      color: #1C1810;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus {
+      border-color: #6B9F58;
+      box-shadow: 0 0 0 3px rgba(107,159,88,0.12);
+      background: #fff;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #2B5219;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn:hover { background: #1e3d12; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .erro {
+      background: #FDEAEA;
+      border: 1px solid #f0c0c0;
+      color: #7A1C1C;
+      font-size: 13px;
+      padding: 9px 13px;
+      border-radius: 8px;
+      margin-top: 12px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="24" height="24" fill="none" stroke="#2B5219" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1zM16 3H8l-2 4h12l-2-4z"/>
+        </svg>
+      </div>
+      <div class="logo-title">Pet Shop Entregas</div>
+      <div class="logo-sub">Faca login para continuar</div>
+    </div>
+
+    <div class="field">
+      <label for="usuario">Usuario</label>
+      <input id="usuario" type="text" placeholder="Seu usuario" autocomplete="username">
+    </div>
+
+    <div class="field">
+      <label for="senha">Senha</label>
+      <input id="senha" type="password" placeholder="Sua senha" autocomplete="current-password">
+    </div>
+
+    <button class="btn" id="btn-login" onclick="fazerLogin()">Entrar</button>
+
+    <div class="erro" id="msg-erro"></div>
+  </div>
+
+  <script>
+    document.getElementById('senha').addEventListener('keydown', e => {
+      if (e.key === 'Enter') fazerLogin();
+    });
+
+    async function fazerLogin() {
+      const usuario = document.getElementById('usuario').value.trim();
+      const senha = document.getElementById('senha').value;
+      const btn = document.getElementById('btn-login');
+      const erro = document.getElementById('msg-erro');
+
+      if (!usuario || !senha) {
+        erro.textContent = 'Preencha usuario e senha.';
+        erro.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Entrando...';
+      erro.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario, senha })
+        });
+
+        if (res.ok) {
+          window.location.href = '/';
+        } else {
+          const d = await res.json();
+          erro.textContent = d.erro || 'Erro ao fazer login.';
+          erro.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Entrar';
+        }
+      } catch (e) {
+        erro.textContent = 'Nao foi possivel conectar ao servidor.';
+        erro.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      }
+    }
+  </script>
+</body>
+</html>

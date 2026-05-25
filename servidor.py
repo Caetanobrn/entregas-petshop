@@ -1,20 +1,87 @@
 """
 servidor.py - Backend Flask com SQLite para o sistema de entregas Pet Shop
 Railway: define a variavel de ambiente PORT automaticamente
+
+CREDENCIAIS DE ACESSO
+---------------------
+Para alterar usuario ou senha, va em:
+Railway > seu projeto > bloco "web" > aba Variables
+
+Altere as variaveis:
+  APP_USER  — nome de usuario
+  APP_PASS  — senha
+
+Apos salvar, o Railway reinicia o servidor automaticamente.
+As credenciais nunca ficam gravadas no codigo, apenas nas variaveis de ambiente.
 """
 
 import sqlite3
 import os
-from flask import Flask, request, jsonify, send_from_directory
+from flask import (Flask, request, jsonify, send_from_directory,
+                   session, redirect, url_for)
 from datetime import datetime
+from functools import wraps
 
 app = Flask(__name__, static_folder='static')
 
-# No Railway o banco fica em /data (volume persistente) se configurado,
-# caso contrario fica na pasta do projeto (resetaria em cada deploy).
-# Para persistencia real no Railway, usamos um volume montado em /data.
+# Chave secreta para assinar a sessao — gerada automaticamente se nao definida
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
+
 DATA_DIR = os.environ.get('DATA_DIR', '.')
 DB_PATH = os.path.join(DATA_DIR, 'petshop.db')
+
+# Credenciais definidas nas variaveis de ambiente do Railway
+APP_USER = os.environ.get('APP_USER', 'atendenteSemeando')
+APP_PASS = os.environ.get('APP_PASS', '#Semeando07')
+
+
+# ─────────────────────────────────────────────
+# AUTENTICACAO
+# ─────────────────────────────────────────────
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('logado'):
+            # Para chamadas de API retorna 401, para paginas redireciona
+            if request.path.startswith('/api'):
+                return jsonify({'erro': 'Nao autorizado'}), 401
+            return redirect('/login')
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route('/login', methods=['GET'])
+def login_page():
+    if session.get('logado'):
+        return redirect('/')
+    return send_from_directory('static', 'login.html')
+
+
+@app.route('/api/login', methods=['POST'])
+def fazer_login():
+    d = request.get_json()
+    usuario = d.get('usuario', '').strip()
+    senha = d.get('senha', '')
+
+    if usuario == APP_USER and senha == APP_PASS:
+        session['logado'] = True
+        session['usuario'] = usuario
+        return jsonify({'ok': True, 'usuario': usuario})
+    return jsonify({'erro': 'Usuario ou senha incorretos'}), 401
+
+
+@app.route('/api/logout', methods=['POST'])
+def fazer_logout():
+    session.clear()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/me', methods=['GET'])
+def quem_sou():
+    if session.get('logado'):
+        return jsonify({'logado': True, 'usuario': session.get('usuario')})
+    return jsonify({'logado': False})
 
 
 # ─────────────────────────────────────────────
@@ -58,6 +125,7 @@ def init_db():
                 status        TEXT NOT NULL DEFAULT 'aguardando',
                 criado_em     TEXT NOT NULL,
                 concluido_em  TEXT,
+                registrado_por TEXT,
                 FOREIGN KEY (cliente_id)    REFERENCES clientes(id),
                 FOREIGN KEY (entregador_id) REFERENCES entregadores(id)
             );
@@ -76,7 +144,7 @@ def init_db():
 
 
 # ─────────────────────────────────────────────
-# PING (evita o servidor dormir no plano gratuito)
+# PING
 # ─────────────────────────────────────────────
 
 @app.route('/ping')
@@ -89,11 +157,17 @@ def ping():
 # ─────────────────────────────────────────────
 
 @app.route('/')
+@login_required
 def index():
     return send_from_directory('static', 'index.html')
 
 @app.route('/<path:filename>')
 def static_files(filename):
+    # login.html e acessivel sem autenticacao
+    if filename == 'login.html':
+        return send_from_directory('static', filename)
+    if not session.get('logado'):
+        return redirect('/login')
     return send_from_directory('static', filename)
 
 
@@ -102,6 +176,7 @@ def static_files(filename):
 # ─────────────────────────────────────────────
 
 @app.route('/api/clientes', methods=['GET'])
+@login_required
 def listar_clientes():
     with get_conn() as conn:
         rows = conn.execute('SELECT * FROM clientes ORDER BY nome').fetchall()
@@ -109,6 +184,7 @@ def listar_clientes():
 
 
 @app.route('/api/clientes', methods=['POST'])
+@login_required
 def criar_cliente():
     d = request.get_json()
     if not d.get('nome') or not d.get('telefone') or not d.get('endereco'):
@@ -123,6 +199,7 @@ def criar_cliente():
 
 
 @app.route('/api/clientes/<int:cid>', methods=['DELETE'])
+@login_required
 def deletar_cliente(cid):
     with get_conn() as conn:
         conn.execute('DELETE FROM clientes WHERE id = ?', (cid,))
@@ -134,6 +211,7 @@ def deletar_cliente(cid):
 # ─────────────────────────────────────────────
 
 @app.route('/api/entregadores', methods=['GET'])
+@login_required
 def listar_entregadores():
     with get_conn() as conn:
         rows = conn.execute('SELECT * FROM entregadores ORDER BY nome').fetchall()
@@ -141,6 +219,7 @@ def listar_entregadores():
 
 
 @app.route('/api/entregadores', methods=['POST'])
+@login_required
 def criar_entregador():
     d = request.get_json()
     if not d.get('nome') or not d.get('telefone'):
@@ -155,6 +234,7 @@ def criar_entregador():
 
 
 @app.route('/api/entregadores/<int:eid>', methods=['DELETE'])
+@login_required
 def deletar_entregador(eid):
     with get_conn() as conn:
         conn.execute('DELETE FROM entregadores WHERE id = ?', (eid,))
@@ -166,6 +246,7 @@ def deletar_entregador(eid):
 # ─────────────────────────────────────────────
 
 @app.route('/api/produtos', methods=['GET'])
+@login_required
 def listar_produtos():
     termo = request.args.get('q', '')
     with get_conn() as conn:
@@ -180,6 +261,7 @@ def listar_produtos():
 
 
 @app.route('/api/produtos', methods=['POST'])
+@login_required
 def criar_produto():
     d = request.get_json()
     if not d.get('nome'):
@@ -194,6 +276,7 @@ def criar_produto():
 
 
 @app.route('/api/produtos/<int:pid>', methods=['DELETE'])
+@login_required
 def deletar_produto(pid):
     with get_conn() as conn:
         conn.execute('DELETE FROM produtos WHERE id = ?', (pid,))
@@ -205,6 +288,7 @@ def deletar_produto(pid):
 # ─────────────────────────────────────────────
 
 @app.route('/api/pedidos', methods=['GET'])
+@login_required
 def listar_pedidos():
     status = request.args.get('status', '')
     with get_conn() as conn:
@@ -228,6 +312,7 @@ def listar_pedidos():
 
 
 @app.route('/api/pedidos', methods=['POST'])
+@login_required
 def criar_pedido():
     d = request.get_json()
     if not d.get('cliente_id') or not d.get('entregador_id'):
@@ -236,11 +321,12 @@ def criar_pedido():
         return jsonify({'erro': 'O pedido deve ter ao menos um item'}), 400
 
     criado_em = datetime.now().strftime('%d/%m/%Y %H:%M')
+    registrado_por = session.get('usuario', '')
 
     with get_conn() as conn:
         cur = conn.execute(
-            'INSERT INTO pedidos (cliente_id, entregador_id, status, criado_em) VALUES (?, ?, ?, ?)',
-            (d['cliente_id'], d['entregador_id'], 'aguardando', criado_em)
+            'INSERT INTO pedidos (cliente_id, entregador_id, status, criado_em, registrado_por) VALUES (?, ?, ?, ?, ?)',
+            (d['cliente_id'], d['entregador_id'], 'aguardando', criado_em, registrado_por)
         )
         pedido_id = cur.lastrowid
 
@@ -259,6 +345,7 @@ def criar_pedido():
 
 
 @app.route('/api/pedidos/<int:pid>/avancar', methods=['POST'])
+@login_required
 def avancar_pedido(pid):
     with get_conn() as conn:
         pedido = conn.execute('SELECT * FROM pedidos WHERE id = ?', (pid,)).fetchone()
@@ -287,6 +374,7 @@ def avancar_pedido(pid):
 
 
 @app.route('/api/metricas', methods=['GET'])
+@login_required
 def metricas():
     with get_conn() as conn:
         total = conn.execute('SELECT COUNT(*) FROM pedidos').fetchone()[0]

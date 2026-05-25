@@ -1,4 +1,4 @@
-// nav.js — Controle de navegacao entre paginas
+// nav.js — Controle de navegacao, autenticacao e logout
 
 async function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -17,12 +17,33 @@ async function showPage(id) {
   if (id === 'produtos')     { await renderListaProdutos(); }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function fazerLogout() {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Verifica se esta logado e exibe o nome do usuario na navbar
+  try {
+    const res = await fetch('/api/me');
+    const d = await res.json();
+    if (!d.logado) {
+      window.location.href = '/login';
+      return;
+    }
+    const el = document.getElementById('nav-usuario');
+    if (el) el.textContent = d.usuario;
+  } catch (e) {
+    window.location.href = '/login';
+    return;
+  }
+
   document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
       showPage(link.dataset.page);
     });
   });
+
   showPage('pedidos');
 });
