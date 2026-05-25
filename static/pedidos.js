@@ -1,4 +1,4 @@
-// pedidos.js — Listagem, metricas e controle de status
+// pedidos.js — Listagem, metricas, controle de status e modal de entregador
 
 function badgeHtml(status) {
   const map = {
@@ -72,11 +72,11 @@ async function renderPedidos() {
       const entregador = entregadores.find(e => e.id === p.entregador_id);
       const nomeCliente = cliente ? cliente.nome : 'Cliente removido';
       const endCliente = cliente ? `<span style="color:var(--text-3)"> &middot; ${cliente.endereco}</span>` : '';
-      const nomeEntregador = entregador ? entregador.nome : 'Entregador removido';
+      const nomeEntregador = entregador ? entregador.nome : (p.status === 'aguardando' ? 'A definir' : 'Entregador removido');
 
       let acoes = '';
       if (p.status === 'aguardando') {
-        acoes = `<button class="btn btn-sm" onclick="avancarPedido(${p.id})">
+        acoes = `<button class="btn btn-sm" onclick="abrirModalEntregador(${p.id})">
           <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17l6-5-6-5"/>
           </svg>
@@ -99,7 +99,11 @@ async function renderPedidos() {
               ${badgeHtml(p.status)}
             </div>
             <div class="pedido-title" style="margin-top:4px;">${nomeCliente}${endCliente}</div>
-            <div class="pedido-meta">Entregador: ${nomeEntregador} &middot; ${p.criado_em}</div>
+            <div class="pedido-meta">
+              Entregador: ${nomeEntregador}
+              &middot; ${p.criado_em}
+              ${p.registrado_por ? `&middot; Registrado por: ${p.registrado_por}` : ''}
+            </div>
           </div>
         </div>
         ${timelineHtml(p.status)}
@@ -114,6 +118,51 @@ async function renderPedidos() {
   }
 }
 
+// ── Modal de selecao de entregador ────────────
+
+function abrirModalEntregador(pedidoId) {
+  document.getElementById('modal-pedido-id').value = pedidoId;
+  document.getElementById('modal-entregador-select').value = '';
+  document.getElementById('modal-erro').style.display = 'none';
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function fecharModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+}
+
+async function confirmarSaidaEntrega() {
+  const pedidoId = parseInt(document.getElementById('modal-pedido-id').value);
+  const entregadorId = parseInt(document.getElementById('modal-entregador-select').value);
+  const erro = document.getElementById('modal-erro');
+
+  if (!entregadorId) {
+    erro.textContent = 'Selecione um entregador.';
+    erro.style.display = 'block';
+    return;
+  }
+
+  try {
+    await avancarStatusComEntregador(pedidoId, entregadorId);
+    fecharModal();
+    await Promise.all([renderMetricas(), renderPedidos()]);
+  } catch (e) {
+    erro.textContent = 'Erro: ' + e.message;
+    erro.style.display = 'block';
+  }
+}
+
+async function popularModalEntregadores() {
+  const sel = document.getElementById('modal-entregador-select');
+  try {
+    const lista = await getEntregadores();
+    sel.innerHTML = '<option value="">Selecionar entregador...</option>' +
+      lista.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+  } catch (e) {
+    sel.innerHTML = '<option value="">Erro ao carregar</option>';
+  }
+}
+
 async function avancarPedido(id) {
   try {
     await avancarStatus(id);
@@ -122,3 +171,11 @@ async function avancarPedido(id) {
     alert('Erro ao atualizar status: ' + e.message);
   }
 }
+
+// Fechar modal ao clicar fora
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('modal-overlay')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-overlay')) fecharModal();
+  });
+  popularModalEntregadores();
+});

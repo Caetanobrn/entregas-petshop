@@ -77,3 +77,10 @@ async function avancarStatus(id) {
 async function getMetricas() {
   return apiFetch('/metricas');
 }
+
+async function avancarStatusComEntregador(id, entregadorId) {
+  return apiFetch(`/pedidos/${id}/avancar`, {
+    method: 'POST',
+    body: JSON.stringify({ entregador_id: entregadorId })
+  });
+}

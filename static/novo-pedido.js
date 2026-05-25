@@ -1,29 +1,62 @@
-// novo-pedido.js — Formulario de criacao de pedido com itens hibridos
+// novo-pedido.js — Formulario de criacao de pedido com busca de cliente e itens hibridos
 
 let itemRowsCount = 0;
 const itemRowsData = {};
+let clienteSelecionadoId = null;
 
 async function initNovoPedido() {
   itemRowsCount = 0;
+  clienteSelecionadoId = null;
   Object.keys(itemRowsData).forEach(k => delete itemRowsData[k]);
   document.getElementById('np-itens-body').innerHTML = '';
 
-  try {
-    const [clientes, entregadores] = await Promise.all([getClientes(), getEntregadores()]);
-
-    document.getElementById('np-cliente').innerHTML =
-      '<option value="">Selecionar cliente...</option>' +
-      clientes.map(c => `<option value="${c.id}">${c.nome} — ${c.endereco}</option>`).join('');
-
-    document.getElementById('np-entregador').innerHTML =
-      '<option value="">Selecionar entregador...</option>' +
-      entregadores.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
-  } catch (e) {
-    console.error('Erro ao carregar selects:', e);
-  }
+  // Limpa busca de cliente
+  document.getElementById('np-cliente-input').value = '';
+  document.getElementById('np-cliente-tag').innerHTML = '';
+  document.getElementById('np-cliente-ac').style.display = 'none';
 
   adicionarItemRow();
 }
+
+// ── Busca de cliente ──────────────────────────
+
+async function onClienteInput() {
+  const val = document.getElementById('np-cliente-input').value.trim();
+  const ac = document.getElementById('np-cliente-ac');
+  const tag = document.getElementById('np-cliente-tag');
+
+  clienteSelecionadoId = null;
+  tag.innerHTML = '';
+
+  if (val.length < 2) { ac.style.display = 'none'; return; }
+
+  try {
+    const lista = await fetch(`/api/clientes?q=${encodeURIComponent(val)}`).then(r => r.json());
+    if (!lista.length) {
+      ac.innerHTML = '<div style="padding:8px 12px;font-size:13px;color:var(--text-3);">Nenhum cliente encontrado</div>';
+      ac.style.display = 'block';
+      return;
+    }
+    ac.innerHTML = lista.map(c => `
+      <div class="ac-item" onclick="selecionarCliente(${c.id}, '${c.nome.replace(/'/g,"\\'")}', '${c.endereco.replace(/'/g,"\\'")}')">
+        <span>${c.nome}</span>
+        <small>${c.telefone} &middot; ${c.endereco}</small>
+      </div>`).join('');
+    ac.style.display = 'block';
+  } catch (e) {
+    ac.style.display = 'none';
+  }
+}
+
+function selecionarCliente(id, nome, endereco) {
+  clienteSelecionadoId = id;
+  document.getElementById('np-cliente-input').value = nome;
+  document.getElementById('np-cliente-ac').style.display = 'none';
+  document.getElementById('np-cliente-tag').innerHTML =
+    `<span class="badge badge-cat" style="margin-top:4px;display:inline-block;">${endereco}</span>`;
+}
+
+// ── Itens ─────────────────────────────────────
 
 function adicionarItemRow() {
   const id = ++itemRowsCount;
@@ -84,7 +117,6 @@ async function onItemDescInput(id) {
   try {
     const matches = await searchProdutos(val);
     if (!matches.length) { ac.style.display = 'none'; return; }
-
     ac.innerHTML = matches.map(p =>
       `<div class="ac-item" onclick="selecionarProduto(${id}, ${p.id}, '${p.nome.replace(/'/g,"\\'")}', '${p.unidade}', '${p.valor || ''}')">
         <span>${p.nome}</span>
@@ -102,14 +134,11 @@ function selecionarProduto(rowId, prodId, nome, unidade, valor) {
   document.getElementById('item-ac-' + rowId).style.display = 'none';
   document.getElementById('item-tag-' + rowId).innerHTML =
     '<span class="badge badge-cat">produto cadastrado</span>';
-
   itemRowsData[rowId].produtoId = prodId;
-
   const sel = document.getElementById('item-tipo-' + rowId);
   if (unidade === 'kg') sel.value = 'peso';
   else if (unidade === 'l') sel.value = 'valor';
   else sel.value = 'un';
-
   if (valor) document.getElementById('item-qtd-' + rowId).value = valor;
   onItemTipoChange(rowId);
 }
@@ -118,7 +147,6 @@ function onItemTipoChange(rowId) {
   const tipo = document.getElementById('item-tipo-' + rowId).value;
   const qtdCell = document.getElementById('item-qtd-cell-' + rowId);
   const valCell = document.getElementById('item-val-cell-' + rowId);
-
   if (tipo === 'ambos') {
     qtdCell.innerHTML = `<input type="number" id="item-qtd-${rowId}" placeholder="Peso (kg)" step="0.01" min="0">`;
     valCell.innerHTML = `<input type="number" id="item-val-${rowId}" placeholder="Valor (R$)" step="0.01" min="0">`;
@@ -136,39 +164,27 @@ function coletarItens() {
   document.querySelectorAll('#np-itens-body tr').forEach(tr => {
     const rowId = parseInt(tr.id.replace('item-row-', ''));
     if (!rowId) return;
-
     const desc = (document.getElementById('item-desc-' + rowId)?.value || '').trim();
     if (!desc) return;
-
     const tipo = document.getElementById('item-tipo-' + rowId)?.value;
-    const qtdEl = document.getElementById('item-qtd-' + rowId);
-    const valEl = document.getElementById('item-val-' + rowId);
-    const qtd = qtdEl?.value || '';
-    const val = valEl?.value || '';
-
+    const qtd = document.getElementById('item-qtd-' + rowId)?.value || '';
+    const val = document.getElementById('item-val-' + rowId)?.value || '';
     const item = { desc, tipo };
     if (tipo === 'peso') { item.qtd = qtd; item.unidade = 'kg'; }
     else if (tipo === 'valor') { item.valor = qtd; }
     else if (tipo === 'un') { item.qtd = qtd; item.unidade = 'un'; }
     else if (tipo === 'ambos') { item.qtd = qtd; item.unidade = 'kg'; item.valor = val; }
-
     itens.push(item);
   });
   return itens;
 }
 
 async function salvarNovoPedido() {
-  const clienteId = parseInt(document.getElementById('np-cliente').value);
-  const entregadorId = parseInt(document.getElementById('np-entregador').value);
-
-  if (!clienteId) { alert('Selecione um cliente.'); return; }
-  if (!entregadorId) { alert('Selecione um entregador.'); return; }
-
+  if (!clienteSelecionadoId) { alert('Selecione um cliente.'); return; }
   const itens = coletarItens();
   if (!itens.length) { alert('Adicione ao menos um item ao pedido.'); return; }
-
   try {
-    await addPedido(clienteId, entregadorId, itens);
+    await addPedido(clienteSelecionadoId, null, itens);
     showPage('pedidos');
   } catch (e) {
     alert('Erro ao salvar pedido: ' + e.message);
@@ -176,7 +192,8 @@ async function salvarNovoPedido() {
 }
 
 document.addEventListener('click', e => {
-  if (!e.target.closest('.autocomplete-wrap')) {
+  if (!e.target.closest('.autocomplete-wrap') && !e.target.closest('#np-cliente-wrap')) {
     document.querySelectorAll('.ac-list').forEach(el => el.style.display = 'none');
+    document.getElementById('np-cliente-ac').style.display = 'none';
   }
 });

@@ -182,8 +182,20 @@ def static_files(filename):
 @app.route('/api/clientes', methods=['GET'])
 @login_required
 def listar_clientes():
+    termo = request.args.get('q', '')
     with get_conn() as conn:
-        rows = conn.execute('SELECT * FROM clientes ORDER BY nome').fetchall()
+        if termo:
+            t = f'%{termo.lower()}%'
+            rows = conn.execute(
+                """SELECT * FROM clientes
+                   WHERE LOWER(nome) LIKE ?
+                      OR LOWER(telefone) LIKE ?
+                      OR LOWER(endereco) LIKE ?
+                   ORDER BY nome""",
+                (t, t, t)
+            ).fetchall()
+        else:
+            rows = conn.execute('SELECT * FROM clientes ORDER BY nome').fetchall()
     return jsonify([dict(r) for r in rows])
 
 
@@ -319,8 +331,8 @@ def listar_pedidos():
 @login_required
 def criar_pedido():
     d = request.get_json()
-    if not d.get('cliente_id') or not d.get('entregador_id'):
-        return jsonify({'erro': 'Campos obrigatorios: cliente_id, entregador_id'}), 400
+    if not d.get('cliente_id'):
+        return jsonify({'erro': 'Campo obrigatorio: cliente_id'}), 400
     if not d.get('itens'):
         return jsonify({'erro': 'O pedido deve ter ao menos um item'}), 400
 
@@ -330,7 +342,7 @@ def criar_pedido():
     with get_conn() as conn:
         cur = conn.execute(
             'INSERT INTO pedidos (cliente_id, entregador_id, status, criado_em, registrado_por) VALUES (?, ?, ?, ?, ?)',
-            (d['cliente_id'], d['entregador_id'], 'aguardando', criado_em, registrado_por)
+            (d['cliente_id'], None, 'aguardando', criado_em, registrado_por)
         )
         pedido_id = cur.lastrowid
 
@@ -351,6 +363,7 @@ def criar_pedido():
 @app.route('/api/pedidos/<int:pid>/avancar', methods=['POST'])
 @login_required
 def avancar_pedido(pid):
+    d = request.get_json() or {}
     with get_conn() as conn:
         pedido = conn.execute('SELECT * FROM pedidos WHERE id = ?', (pid,)).fetchone()
         if not pedido:
@@ -358,16 +371,21 @@ def avancar_pedido(pid):
 
         novo_status = None
         concluido_em = None
+        entregador_id = pedido['entregador_id']
+
         if pedido['status'] == 'aguardando':
+            if not d.get('entregador_id'):
+                return jsonify({'erro': 'Selecione um entregador para iniciar a entrega'}), 400
             novo_status = 'rota'
+            entregador_id = d['entregador_id']
         elif pedido['status'] == 'rota':
             novo_status = 'concluido'
             concluido_em = datetime.now().strftime('%d/%m/%Y %H:%M')
 
         if novo_status:
             conn.execute(
-                'UPDATE pedidos SET status = ?, concluido_em = ? WHERE id = ?',
-                (novo_status, concluido_em, pid)
+                'UPDATE pedidos SET status = ?, concluido_em = ?, entregador_id = ? WHERE id = ?',
+                (novo_status, concluido_em, entregador_id, pid)
             )
 
         pedido = dict(conn.execute('SELECT * FROM pedidos WHERE id = ?', (pid,)).fetchone())
