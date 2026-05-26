@@ -354,8 +354,8 @@ def listar_pedidos():
 @login_required
 def criar_pedido():
     d = request.get_json()
-    if not d.get('cliente_id'):
-        return jsonify({'erro': 'Campo obrigatorio: cliente_id'}), 400
+    if not d.get('cliente_id') and not d.get('nome_avulso', '').strip():
+        return jsonify({'erro': 'Informe um cliente ou um nome para o pedido'}), 400
     if not d.get('itens'):
         return jsonify({'erro': 'O pedido deve ter ao menos um item'}), 400
 
