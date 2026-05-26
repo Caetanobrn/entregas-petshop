@@ -120,14 +120,16 @@ def init_db():
 
             CREATE TABLE IF NOT EXISTS pedidos (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                cliente_id    INTEGER NOT NULL,
-                entregador_id INTEGER NOT NULL,
+                cliente_id    INTEGER,
+                entregador_id INTEGER,
                 status        TEXT NOT NULL DEFAULT 'aguardando',
                 criado_em     TEXT NOT NULL,
                 concluido_em  TEXT,
                 registrado_por TEXT,
-                FOREIGN KEY (cliente_id)    REFERENCES clientes(id),
-                FOREIGN KEY (entregador_id) REFERENCES entregadores(id)
+                pagamento_id  INTEGER,
+                nome_avulso   TEXT,
+                total         REAL,
+                cancelado     INTEGER DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS itens_pedido (
@@ -140,12 +142,30 @@ def init_db():
                 valor      TEXT,
                 FOREIGN KEY (pedido_id) REFERENCES pedidos(id)
             );
+
+            CREATE TABLE IF NOT EXISTS formas_pagamento (
+                id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome  TEXT NOT NULL UNIQUE
+            );
         """)
 
-        # Migracao: adiciona coluna registrado_por se ainda nao existir
+        # Migracoes: adiciona colunas novas em bancos ja existentes
         colunas = [row[1] for row in conn.execute("PRAGMA table_info(pedidos)").fetchall()]
-        if "registrado_por" not in colunas:
-            conn.execute("ALTER TABLE pedidos ADD COLUMN registrado_por TEXT")
+        migracoes = [
+            ("registrado_por", "ALTER TABLE pedidos ADD COLUMN registrado_por TEXT"),
+            ("pagamento_id",   "ALTER TABLE pedidos ADD COLUMN pagamento_id INTEGER"),
+            ("nome_avulso",    "ALTER TABLE pedidos ADD COLUMN nome_avulso TEXT"),
+            ("total",          "ALTER TABLE pedidos ADD COLUMN total REAL"),
+            ("cancelado",      "ALTER TABLE pedidos ADD COLUMN cancelado INTEGER DEFAULT 0"),
+        ]
+        for col, sql in migracoes:
+            if col not in colunas:
+                conn.execute(sql)
+
+        # Formas de pagamento padrao
+        if not conn.execute("SELECT 1 FROM formas_pagamento").fetchone():
+            for nome in ["Dinheiro", "Pix", "Cartao de debito", "Cartao de credito"]:
+                conn.execute("INSERT INTO formas_pagamento (nome) VALUES (?)", (nome,))
 
 # ─────────────────────────────────────────────
 # PING
