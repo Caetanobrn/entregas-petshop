@@ -1,5 +1,4 @@
 // db.js — Comunicacao com a API do servidor Flask
-// Usa URL relativa para funcionar tanto local quanto no Railway
 
 const API = '/api';
 
@@ -16,14 +15,12 @@ async function apiFetch(path, options = {}) {
 }
 
 // ── Clientes ──────────────────────────────────
-async function getClientes() {
-  return apiFetch('/clientes');
+async function getClientes(termo) {
+  const qs = termo ? `?q=${encodeURIComponent(termo)}` : '';
+  return apiFetch(`/clientes${qs}`);
 }
 async function addCliente(nome, telefone, endereco) {
-  return apiFetch('/clientes', {
-    method: 'POST',
-    body: JSON.stringify({ nome, telefone, endereco })
-  });
+  return apiFetch('/clientes', { method: 'POST', body: JSON.stringify({ nome, telefone, endereco }) });
 }
 async function deleteCliente(id) {
   return apiFetch(`/clientes/${id}`, { method: 'DELETE' });
@@ -34,10 +31,7 @@ async function getEntregadores() {
   return apiFetch('/entregadores');
 }
 async function addEntregador(nome, telefone) {
-  return apiFetch('/entregadores', {
-    method: 'POST',
-    body: JSON.stringify({ nome, telefone })
-  });
+  return apiFetch('/entregadores', { method: 'POST', body: JSON.stringify({ nome, telefone }) });
 }
 async function deleteEntregador(id) {
   return apiFetch(`/entregadores/${id}`, { method: 'DELETE' });
@@ -51,13 +45,21 @@ async function searchProdutos(termo) {
   return apiFetch(`/produtos?q=${encodeURIComponent(termo)}`);
 }
 async function addProduto(nome, unidade, valor) {
-  return apiFetch('/produtos', {
-    method: 'POST',
-    body: JSON.stringify({ nome, unidade, valor })
-  });
+  return apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, unidade, valor }) });
 }
 async function deleteProduto(id) {
   return apiFetch(`/produtos/${id}`, { method: 'DELETE' });
+}
+
+// ── Formas de pagamento ───────────────────────
+async function getPagamentos() {
+  return apiFetch('/pagamentos');
+}
+async function addPagamento(nome) {
+  return apiFetch('/pagamentos', { method: 'POST', body: JSON.stringify({ nome }) });
+}
+async function deletePagamento(id) {
+  return apiFetch(`/pagamentos/${id}`, { method: 'DELETE' });
 }
 
 // ── Pedidos ───────────────────────────────────
@@ -65,22 +67,33 @@ async function getPedidos(filtroStatus) {
   const qs = filtroStatus ? `?status=${filtroStatus}` : '';
   return apiFetch(`/pedidos${qs}`);
 }
-async function addPedido(clienteId, entregadorId, itens) {
+async function addPedido(clienteId, nomeAvulso, itens, pagamentoId, total) {
   return apiFetch('/pedidos', {
     method: 'POST',
-    body: JSON.stringify({ cliente_id: clienteId, entregador_id: entregadorId, itens })
+    body: JSON.stringify({
+      cliente_id: clienteId || null,
+      nome_avulso: nomeAvulso || '',
+      itens,
+      pagamento_id: pagamentoId || null,
+      total: total || null
+    })
   });
+}
+async function editarPedido(id, dados) {
+  return apiFetch(`/pedidos/${id}`, { method: 'PATCH', body: JSON.stringify(dados) });
+}
+async function cancelarPedido(id) {
+  return apiFetch(`/pedidos/${id}/cancelar`, { method: 'POST' });
 }
 async function avancarStatus(id) {
   return apiFetch(`/pedidos/${id}/avancar`, { method: 'POST' });
 }
-async function getMetricas() {
-  return apiFetch('/metricas');
-}
-
 async function avancarStatusComEntregador(id, entregadorId) {
   return apiFetch(`/pedidos/${id}/avancar`, {
     method: 'POST',
     body: JSON.stringify({ entregador_id: entregadorId })
   });
+}
+async function getMetricas() {
+  return apiFetch('/metricas');
 }

@@ -311,3 +311,4 @@ hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
   .metrics { grid-template-columns: 1fr; }
   .topbar { overflow-x: auto; }
 }
+.badge-cancel { background: #F3F0EC; color: var(--text-3); border: 1px solid var(--border); }

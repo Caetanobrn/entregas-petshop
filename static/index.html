@@ -51,6 +51,14 @@
       Produtos
     </a>
 
+    <a href="#" class="nav-link" data-page="pagamentos">
+      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+      </svg>
+      Pagamentos
+    </a>
+
     <div style="margin-left:auto;display:flex;align-items:center;gap:12px;padding-left:16px;border-left:1px solid var(--border);">
       <span style="font-size:12.5px;color:var(--text-3);" id="nav-usuario"></span>
       <button class="btn btn-sm" onclick="fazerLogout()" style="font-size:12px;padding:5px 11px;">
@@ -92,6 +100,7 @@
         <option value="aguardando">Aguardando</option>
         <option value="rota">Em rota</option>
         <option value="concluido">Concluido</option>
+        <option value="cancelado">Cancelado</option>
       </select>
       <span class="count" id="pedidos-count"></span>
     </div>
@@ -107,14 +116,28 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Cliente *</div>
-      <div id="np-cliente-wrap" class="autocomplete-wrap">
-        <input type="text" id="np-cliente-input"
-          placeholder="Buscar por nome, telefone ou endereco..."
-          oninput="onClienteInput()" autocomplete="off">
-        <div class="ac-list" id="np-cliente-ac" style="display:none;"></div>
+      <div class="card-title">Cliente</div>
+      <div class="form-grid g2">
+        <div class="field">
+          <label>Buscar cliente cadastrado</label>
+          <div id="np-cliente-wrap" class="autocomplete-wrap">
+            <input type="text" id="np-cliente-input"
+              placeholder="Nome, telefone ou endereco..."
+              oninput="onClienteInput()" autocomplete="off">
+            <div class="ac-list" id="np-cliente-ac" style="display:none;"></div>
+          </div>
+          <div id="np-cliente-tag"></div>
+        </div>
+        <div class="field">
+          <label for="np-nome-avulso">Ou informe o nome sem cadastrar</label>
+          <input type="text" id="np-nome-avulso" placeholder="Ex: Joao da Silva"
+            oninput="document.getElementById('np-cliente-input').value=''; clienteSelecionadoId=null; document.getElementById('np-cliente-tag').innerHTML='';">
+        </div>
       </div>
-      <div id="np-cliente-tag"></div>
+      <div class="field" style="margin-top:8px;">
+        <label for="np-pagamento">Forma de pagamento</label>
+        <select id="np-pagamento"><option value="">Sem forma de pagamento</option></select>
+      </div>
     </div>
 
     <div class="card">
@@ -142,7 +165,9 @@
       </table>
     </div>
 
-    <div style="display:flex;justify-content:flex-end;gap:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span id="np-total" style="font-size:15px;font-weight:600;color:var(--accent);"></span>
+      <div style="display:flex;gap:10px;">
       <button class="btn" onclick="showPage('pedidos')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarNovoPedido()">
         <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,6 +175,7 @@
         </svg>
         Confirmar pedido
       </button>
+      </div>
     </div>
   </div>
 
@@ -273,6 +299,36 @@
   </div>
 
 
+
+  <!-- PAGINA: PAGAMENTOS -->
+  <div id="page-pagamentos" class="page">
+    <div class="page-header">
+      <div class="page-title">Formas de pagamento</div>
+      <div class="page-sub">Cadastre as formas de pagamento disponiveis</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Adicionar forma de pagamento</div>
+      <div class="form-grid g2">
+        <div class="field">
+          <label for="pag-nome">Nome *</label>
+          <input id="pag-nome" type="text" placeholder="Ex: Vale alimentacao">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="salvarPagamento()">
+          <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          Salvar
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Formas cadastradas</div>
+      <div id="lista-pagamentos"></div>
+    </div>
+  </div>
+
   <!-- MODAL: Selecionar entregador para saida -->
   <div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;padding:24px;">
     <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:380px;box-shadow:var(--shadow-md);">
@@ -298,6 +354,42 @@
     </div>
   </div>
 
+
+  <!-- MODAL: Edicao de pedido -->
+  <div id="modal-edicao-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:680px;box-shadow:var(--shadow-md);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Editar pedido</div>
+      <div class="form-grid g2" style="margin-bottom:12px;">
+        <div class="field">
+          <label for="edit-nome-avulso">Nome do cliente / pedido</label>
+          <input type="text" id="edit-nome-avulso" placeholder="Nome">
+        </div>
+        <div class="field">
+          <label for="edit-pagamento">Forma de pagamento</label>
+          <select id="edit-pagamento"><option value="">Sem forma de pagamento</option></select>
+        </div>
+      </div>
+      <div style="font-size:13px;font-weight:500;color:var(--text-2);margin-bottom:8px;">Itens</div>
+      <table class="items-tbl" style="margin-bottom:12px;">
+        <thead><tr>
+          <th>Descricao</th><th style="width:130px;">Tipo</th>
+          <th style="width:90px;">Qtd</th><th style="width:90px;">R$ unit.</th><th style="width:32px;"></th>
+        </tr></thead>
+        <tbody id="edit-itens-body"></tbody>
+      </table>
+      <div id="edit-erro" style="display:none;background:var(--danger-light);color:var(--danger);border:1px solid #f0c0c0;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;margin-bottom:12px;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn" onclick="fecharModalEdicao()">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarEdicao()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          Salvar alteracoes
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- SCRIPTS (ordem importa: db antes dos modulos, nav por ultimo) -->
   <script src="db.js"></script>
   <script src="pedidos.js"></script>
@@ -305,6 +397,7 @@
   <script src="clientes.js"></script>
   <script src="entregadores.js"></script>
   <script src="produtos.js"></script>
+  <script src="pagamentos.js"></script>
   <script src="nav.js"></script>
 
 </body>

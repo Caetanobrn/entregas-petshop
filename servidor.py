@@ -313,7 +313,10 @@ def listar_pedidos():
                 'SELECT * FROM pedidos WHERE status = ? ORDER BY id DESC', (status,)
             ).fetchall()
         else:
-            pedidos = conn.execute('SELECT * FROM pedidos ORDER BY id DESC').fetchall()
+            # Por padrao oculta cancelados; passar status=cancelado para ver
+            pedidos = conn.execute(
+                "SELECT * FROM pedidos WHERE status != 'cancelado' ORDER BY id DESC"
+            ).fetchall()
 
         resultado = []
         for p in pedidos:
@@ -338,11 +341,18 @@ def criar_pedido():
 
     criado_em = datetime.now().strftime('%d/%m/%Y %H:%M')
     registrado_por = session.get('usuario', '')
+    pagamento_id = d.get('pagamento_id') or None
+    nome_avulso = d.get('nome_avulso', '').strip() or None
+    total = d.get('total') or None
 
     with get_conn() as conn:
         cur = conn.execute(
-            'INSERT INTO pedidos (cliente_id, entregador_id, status, criado_em, registrado_por) VALUES (?, ?, ?, ?, ?)',
-            (d['cliente_id'], None, 'aguardando', criado_em, registrado_por)
+            """INSERT INTO pedidos
+               (cliente_id, entregador_id, status, criado_em, registrado_por,
+                pagamento_id, nome_avulso, total)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (d.get('cliente_id') or None, None, 'aguardando', criado_em,
+             registrado_por, pagamento_id, nome_avulso, total)
         )
         pedido_id = cur.lastrowid
 
@@ -403,6 +413,110 @@ def metricas():
         rota = conn.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'rota'").fetchone()[0]
         concluidos = conn.execute("SELECT COUNT(*) FROM pedidos WHERE status = 'concluido'").fetchone()[0]
     return jsonify({'total': total, 'rota': rota, 'concluidos': concluidos})
+
+
+
+# ─────────────────────────────────────────────
+# FORMAS DE PAGAMENTO
+# ─────────────────────────────────────────────
+
+@app.route('/api/pagamentos', methods=['GET'])
+@login_required
+def listar_pagamentos():
+    with get_conn() as conn:
+        rows = conn.execute('SELECT * FROM formas_pagamento ORDER BY nome').fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/pagamentos', methods=['POST'])
+@login_required
+def criar_pagamento():
+    d = request.get_json()
+    if not d.get('nome'):
+        return jsonify({'erro': 'Informe o nome da forma de pagamento'}), 400
+    try:
+        with get_conn() as conn:
+            cur = conn.execute('INSERT INTO formas_pagamento (nome) VALUES (?)', (d['nome'].strip(),))
+            row = conn.execute('SELECT * FROM formas_pagamento WHERE id = ?', (cur.lastrowid,)).fetchone()
+        return jsonify(dict(row)), 201
+    except Exception:
+        return jsonify({'erro': 'Forma de pagamento ja existe'}), 409
+
+
+@app.route('/api/pagamentos/<int:pid>', methods=['DELETE'])
+@login_required
+def deletar_pagamento(pid):
+    with get_conn() as conn:
+        conn.execute('DELETE FROM formas_pagamento WHERE id = ?', (pid,))
+    return jsonify({'ok': True})
+
+
+# ─────────────────────────────────────────────
+# CANCELAR PEDIDO
+# ─────────────────────────────────────────────
+
+@app.route('/api/pedidos/<int:pid>/cancelar', methods=['POST'])
+@login_required
+def cancelar_pedido(pid):
+    with get_conn() as conn:
+        pedido = conn.execute('SELECT * FROM pedidos WHERE id = ?', (pid,)).fetchone()
+        if not pedido:
+            return jsonify({'erro': 'Pedido nao encontrado'}), 404
+        if pedido['status'] == 'concluido':
+            return jsonify({'erro': 'Nao e possivel cancelar um pedido ja concluido'}), 400
+        conn.execute(
+            "UPDATE pedidos SET status = 'cancelado', cancelado = 1 WHERE id = ?", (pid,)
+        )
+    return jsonify({'ok': True})
+
+
+# ─────────────────────────────────────────────
+# EDITAR PEDIDO
+# ─────────────────────────────────────────────
+
+@app.route('/api/pedidos/<int:pid>', methods=['PATCH'])
+@login_required
+def editar_pedido(pid):
+    d = request.get_json()
+    with get_conn() as conn:
+        pedido = conn.execute('SELECT * FROM pedidos WHERE id = ?', (pid,)).fetchone()
+        if not pedido:
+            return jsonify({'erro': 'Pedido nao encontrado'}), 404
+
+        campos = []
+        valores = []
+
+        if 'pagamento_id' in d:
+            campos.append('pagamento_id = ?')
+            valores.append(d['pagamento_id'] or None)
+        if 'nome_avulso' in d:
+            campos.append('nome_avulso = ?')
+            valores.append(d['nome_avulso'].strip() or None)
+        if 'cliente_id' in d:
+            campos.append('cliente_id = ?')
+            valores.append(d['cliente_id'] or None)
+        if 'total' in d:
+            campos.append('total = ?')
+            valores.append(d['total'])
+
+        if 'itens' in d:
+            conn.execute('DELETE FROM itens_pedido WHERE pedido_id = ?', (pid,))
+            for item in d['itens']:
+                conn.execute(
+                    'INSERT INTO itens_pedido (pedido_id, descricao, tipo, qtd, unidade, valor) VALUES (?,?,?,?,?,?)',
+                    (pid, item.get('desc',''), item.get('tipo',''),
+                     item.get('qtd',''), item.get('unidade',''), item.get('valor',''))
+                )
+
+        if campos:
+            valores.append(pid)
+            conn.execute(f"UPDATE pedidos SET {', '.join(campos)} WHERE id = ?", valores)
+
+        pedido = dict(conn.execute('SELECT * FROM pedidos WHERE id = ?', (pid,)).fetchone())
+        itens = conn.execute('SELECT * FROM itens_pedido WHERE pedido_id = ?', (pid,)).fetchall()
+        pedido['itens'] = [dict(i) for i in itens]
+
+    return jsonify(pedido)
 
 
 # ─────────────────────────────────────────────
