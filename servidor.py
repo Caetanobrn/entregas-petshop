@@ -162,6 +162,41 @@ def init_db():
             if col not in colunas:
                 conn.execute(sql)
 
+        # Migracao especial: remove NOT NULL de cliente_id e entregador_id
+        # O SQLite nao suporta ALTER COLUMN, entao recria a tabela preservando dados
+        tabela_info = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='pedidos'").fetchone()
+        if tabela_info and 'cliente_id    INTEGER NOT NULL' in tabela_info[0]:
+            conn.executescript("""
+                PRAGMA foreign_keys = OFF;
+
+                CREATE TABLE pedidos_nova (
+                    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_id     INTEGER,
+                    entregador_id  INTEGER,
+                    status         TEXT NOT NULL DEFAULT 'aguardando',
+                    criado_em      TEXT NOT NULL,
+                    concluido_em   TEXT,
+                    registrado_por TEXT,
+                    pagamento_id   INTEGER,
+                    nome_avulso    TEXT,
+                    total          REAL,
+                    cancelado      INTEGER DEFAULT 0
+                );
+
+                INSERT INTO pedidos_nova
+                    (id, cliente_id, entregador_id, status, criado_em, concluido_em,
+                     registrado_por, pagamento_id, nome_avulso, total, cancelado)
+                SELECT
+                    id, cliente_id, entregador_id, status, criado_em, concluido_em,
+                    registrado_por, pagamento_id, nome_avulso, total, cancelado
+                FROM pedidos;
+
+                DROP TABLE pedidos;
+                ALTER TABLE pedidos_nova RENAME TO pedidos;
+
+                PRAGMA foreign_keys = ON;
+            """)
+
         # Formas de pagamento padrao
         if not conn.execute("SELECT 1 FROM formas_pagamento").fetchone():
             for nome in ["Dinheiro", "Pix", "Cartao de debito", "Cartao de credito"]:
