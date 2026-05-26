@@ -88,7 +88,10 @@ async function cancelarPedido(id) {
   return apiFetch(`/pedidos/${id}/cancelar`, { method: 'POST' });
 }
 async function avancarStatus(id) {
-  return apiFetch(`/pedidos/${id}/avancar`, { method: 'POST' });
+  return apiFetch(`/pedidos/${id}/avancar`, {
+    method: 'POST',
+    body: JSON.stringify({})
+  });
 }
 async function avancarStatusComEntregador(id, entregadorId) {
   return apiFetch(`/pedidos/${id}/avancar`, {
