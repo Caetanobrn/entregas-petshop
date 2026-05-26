@@ -67,7 +67,7 @@ async function getPedidos(filtroStatus) {
   const qs = filtroStatus ? `?status=${filtroStatus}` : '';
   return apiFetch(`/pedidos${qs}`);
 }
-async function addPedido(clienteId, nomeAvulso, itens, pagamentoId, total) {
+async function addPedido(clienteId, nomeAvulso, itens, pagamentoId, total, troco, trocoValor) {
   return apiFetch('/pedidos', {
     method: 'POST',
     body: JSON.stringify({
@@ -75,7 +75,9 @@ async function addPedido(clienteId, nomeAvulso, itens, pagamentoId, total) {
       nome_avulso: nomeAvulso || '',
       itens,
       pagamento_id: pagamentoId || null,
-      total: total || null
+      total: total || null,
+      troco: troco || false,
+      troco_valor: trocoValor || null
     })
   });
 }
@@ -92,6 +94,12 @@ async function avancarStatusComEntregador(id, entregadorId) {
   return apiFetch(`/pedidos/${id}/avancar`, {
     method: 'POST',
     body: JSON.stringify({ entregador_id: entregadorId })
+  });
+}
+async function registrarFalhaEntrega(id, motivo) {
+  return apiFetch(`/pedidos/${id}/avancar`, {
+    method: 'POST',
+    body: JSON.stringify({ falha: true, falha_motivo: motivo })
   });
 }
 async function getMetricas() {

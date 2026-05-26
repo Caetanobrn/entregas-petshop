@@ -101,6 +101,7 @@
         <option value="rota">Em rota</option>
         <option value="concluido">Concluido</option>
         <option value="cancelado">Cancelado</option>
+        <option value="falha">Falha na entrega</option>
       </select>
       <span class="count" id="pedidos-count"></span>
     </div>
@@ -136,7 +137,16 @@
       </div>
       <div class="field" style="margin-top:8px;">
         <label for="np-pagamento">Forma de pagamento</label>
-        <select id="np-pagamento"><option value="">Sem forma de pagamento</option></select>
+        <select id="np-pagamento" onchange="onPagamentoChange()"><option value="">Sem forma de pagamento</option></select>
+      </div>
+      <div id="np-troco-wrap" style="display:none;margin-top:10px;padding:10px 12px;background:var(--warn-light);border:1px solid #f5d9a0;border-radius:var(--radius-sm);">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--warn);">
+          <input type="checkbox" id="np-troco" onchange="onTrocoChange()"> Precisa de troco
+        </label>
+        <div id="np-troco-valor-wrap" style="display:none;margin-top:8px;">
+          <label style="font-size:12px;color:var(--warn);">Troco para quanto? (R$)</label>
+          <input type="number" id="np-troco-valor" placeholder="Ex: 200,00" step="0.01" min="0" style="margin-top:4px;max-width:160px;">
+        </div>
       </div>
     </div>
 
@@ -385,6 +395,26 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
           </svg>
           Salvar alteracoes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Falha na entrega -->
+  <div id="modal-falha-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;padding:24px;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:420px;box-shadow:var(--shadow-md);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px;color:var(--warn);">Falha na entrega</div>
+      <div style="font-size:13px;color:var(--text-3);margin-bottom:16px;">Descreva o motivo pelo qual a entrega nao foi realizada</div>
+      <input type="hidden" id="modal-falha-pedido-id">
+      <div class="field" style="margin-bottom:16px;">
+        <label for="modal-falha-motivo">Motivo *</label>
+        <textarea id="modal-falha-motivo" placeholder="Ex: Cliente ausente, endereco nao encontrado..." style="min-height:80px;"></textarea>
+      </div>
+      <div id="modal-falha-erro" style="display:none;background:var(--danger-light);color:var(--danger);border:1px solid #f0c0c0;border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;margin-bottom:12px;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn" onclick="fecharModalFalha()">Cancelar</button>
+        <button class="btn" style="background:var(--warn-light);color:var(--warn);border-color:#f5d9a0;" onclick="confirmarFalhaEntrega()">
+          Registrar falha
         </button>
       </div>
     </div>

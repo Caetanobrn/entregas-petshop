@@ -21,6 +21,9 @@ async function initNovoPedido() {
     sel.innerHTML = '<option value="">Sem forma de pagamento</option>' +
       pagamentos.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
   } catch(e) { console.error(e); }
+  document.getElementById('np-troco-wrap').style.display = 'none';
+  document.getElementById('np-troco').checked = false;
+  document.getElementById('np-troco-valor').value = '';
 
   adicionarItemRow();
 }
@@ -180,6 +183,23 @@ function coletarItens() {
   return itens;
 }
 
+function onPagamentoChange() {
+  const sel = document.getElementById('np-pagamento');
+  const opt = sel.options[sel.selectedIndex];
+  const nome = opt ? opt.text.toLowerCase() : '';
+  const wrap = document.getElementById('np-troco-wrap');
+  wrap.style.display = nome.includes('dinheiro') ? 'block' : 'none';
+  if (!nome.includes('dinheiro')) {
+    document.getElementById('np-troco').checked = false;
+    document.getElementById('np-troco-valor').value = '';
+  }
+}
+
+function onTrocoChange() {
+  const checked = document.getElementById('np-troco').checked;
+  document.getElementById('np-troco-valor-wrap').style.display = checked ? 'block' : 'none';
+}
+
 async function salvarNovoPedido() {
   const nomeAvulso = document.getElementById('np-nome-avulso').value.trim();
   if (!clienteSelecionadoId && !nomeAvulso) {
@@ -189,8 +209,10 @@ async function salvarNovoPedido() {
   if (!itens.length) { alert('Adicione ao menos um item ao pedido.'); return; }
   const pagamentoId = document.getElementById('np-pagamento').value || null;
   const total = recalcularTotal();
+  const troco = document.getElementById('np-troco').checked;
+  const trocoValor = parseFloat(document.getElementById('np-troco-valor').value) || null;
   try {
-    await addPedido(clienteSelecionadoId, nomeAvulso, itens, pagamentoId, total || null);
+    await addPedido(clienteSelecionadoId, nomeAvulso, itens, pagamentoId, total || null, troco, trocoValor);
     showPage('pedidos');
   } catch(e) {
     alert('Erro ao salvar pedido: ' + e.message);

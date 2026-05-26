@@ -312,3 +312,5 @@ hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
   .topbar { overflow-x: auto; }
 }
 .badge-cancel { background: #F3F0EC; color: var(--text-3); border: 1px solid var(--border); }
+.badge-falha { background: var(--warn-light); color: var(--warn); border: 1px solid #f5d9a0; }
+.badge-warn  { background: var(--warn-light); color: var(--warn); border: 1px solid #f5d9a0; }

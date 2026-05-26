@@ -157,6 +157,9 @@ def init_db():
             ("nome_avulso",    "ALTER TABLE pedidos ADD COLUMN nome_avulso TEXT"),
             ("total",          "ALTER TABLE pedidos ADD COLUMN total REAL"),
             ("cancelado",      "ALTER TABLE pedidos ADD COLUMN cancelado INTEGER DEFAULT 0"),
+            ("troco",          "ALTER TABLE pedidos ADD COLUMN troco INTEGER DEFAULT 0"),
+            ("troco_valor",    "ALTER TABLE pedidos ADD COLUMN troco_valor REAL"),
+            ("falha_motivo",   "ALTER TABLE pedidos ADD COLUMN falha_motivo TEXT"),
         ]
         for col, sql in migracoes:
             if col not in colunas:
@@ -370,7 +373,7 @@ def listar_pedidos():
         else:
             # Por padrao oculta cancelados; passar status=cancelado para ver
             pedidos = conn.execute(
-                "SELECT * FROM pedidos WHERE status != 'cancelado' ORDER BY id DESC"
+                "SELECT * FROM pedidos WHERE status NOT IN ('cancelado') ORDER BY id DESC"
             ).fetchall()
 
         resultado = []
@@ -399,15 +402,17 @@ def criar_pedido():
     pagamento_id = d.get('pagamento_id') or None
     nome_avulso = d.get('nome_avulso', '').strip() or None
     total = d.get('total') or None
+    troco = 1 if d.get('troco') else 0
+    troco_valor = d.get('troco_valor') or None
 
     with get_conn() as conn:
         cur = conn.execute(
             """INSERT INTO pedidos
                (cliente_id, entregador_id, status, criado_em, registrado_por,
-                pagamento_id, nome_avulso, total)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                pagamento_id, nome_avulso, total, troco, troco_valor)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (d.get('cliente_id') or None, None, 'aguardando', criado_em,
-             registrado_por, pagamento_id, nome_avulso, total)
+             registrado_por, pagamento_id, nome_avulso, total, troco, troco_valor)
         )
         pedido_id = cur.lastrowid
 
@@ -437,6 +442,8 @@ def avancar_pedido(pid):
         novo_status = None
         concluido_em = None
         entregador_id = pedido['entregador_id']
+        extra_campos = []
+        extra_valores = []
 
         if pedido['status'] == 'aguardando':
             if not d.get('entregador_id'):
@@ -444,14 +451,23 @@ def avancar_pedido(pid):
             novo_status = 'rota'
             entregador_id = d['entregador_id']
         elif pedido['status'] == 'rota':
-            novo_status = 'concluido'
-            concluido_em = datetime.now().strftime('%d/%m/%Y %H:%M')
+            # Falha na entrega
+            if d.get('falha'):
+                novo_status = 'falha'
+                extra_campos.append('falha_motivo = ?')
+                extra_valores.append(d.get('falha_motivo', '').strip() or None)
+            else:
+                novo_status = 'concluido'
+                concluido_em = datetime.now().strftime('%d/%m/%Y %H:%M')
 
         if novo_status:
-            conn.execute(
-                'UPDATE pedidos SET status = ?, concluido_em = ?, entregador_id = ? WHERE id = ?',
-                (novo_status, concluido_em, entregador_id, pid)
-            )
+            set_clause = 'status = ?, concluido_em = ?, entregador_id = ?'
+            params = [novo_status, concluido_em, entregador_id]
+            for c, v in zip(extra_campos, extra_valores):
+                set_clause += f', {c}'
+                params.append(v)
+            params.append(pid)
+            conn.execute(f'UPDATE pedidos SET {set_clause} WHERE id = ?', params)
 
         pedido = dict(conn.execute('SELECT * FROM pedidos WHERE id = ?', (pid,)).fetchone())
         itens = conn.execute('SELECT * FROM itens_pedido WHERE pedido_id = ?', (pid,)).fetchall()
@@ -553,6 +569,12 @@ def editar_pedido(pid):
         if 'total' in d:
             campos.append('total = ?')
             valores.append(d['total'])
+        if 'troco' in d:
+            campos.append('troco = ?')
+            valores.append(1 if d['troco'] else 0)
+        if 'troco_valor' in d:
+            campos.append('troco_valor = ?')
+            valores.append(d['troco_valor'] or None)
 
         if 'itens' in d:
             conn.execute('DELETE FROM itens_pedido WHERE pedido_id = ?', (pid,))

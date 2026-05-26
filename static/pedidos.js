@@ -5,7 +5,8 @@ function badgeHtml(status) {
     aguardando: ['badge-wait', '&#9679; Aguardando'],
     rota:       ['badge-route', '&#9654; Em rota'],
     concluido:  ['badge-done', '&#10003; Concluido'],
-    cancelado:  ['badge-cancel', '&#10005; Cancelado']
+    cancelado:  ['badge-cancel', '&#10005; Cancelado'],
+    falha:      ['badge-falha', '&#9888; Falha na entrega']
   };
   const [cls, label] = map[status] || ['badge-wait', status];
   return `<span class="badge ${cls}">${label}</span>`;
@@ -13,6 +14,7 @@ function badgeHtml(status) {
 
 function timelineHtml(status) {
   if (status === 'cancelado') return '<div style="font-size:12px;color:var(--danger);margin:6px 0;">Pedido cancelado</div>';
+  if (status === 'falha') return '<div style="font-size:12px;color:var(--warn);margin:6px 0;">Entrega nao realizada</div>';
   const steps = ['aguardando', 'rota', 'concluido'];
   const labels = ['Aguardando', 'Em rota', 'Concluido'];
   const cur = steps.indexOf(status);
@@ -85,6 +87,8 @@ async function renderPedidos() {
       const total = p.total || calcularTotal(p.itens);
       const totalHtml = total > 0 ? `<span style="font-weight:600;color:var(--accent);">Total: R$ ${total.toFixed(2)}</span>` : '';
       const pagHtml = pagamento ? `<span class="badge badge-free" style="margin-left:4px;">${pagamento.nome}</span>` : '';
+      const trocoHtml = p.troco ? `<span class="badge badge-warn" style="margin-left:4px;">Troco${p.troco_valor ? ` p/ R$ ${parseFloat(p.troco_valor).toFixed(2)}` : ''}</span>` : '';
+      const falhaHtml = p.falha_motivo ? `<div style="font-size:12px;color:var(--warn);margin-top:4px;">Motivo: ${p.falha_motivo}</div>` : '';
       let acoes = '';
       if (p.status === 'aguardando') {
         acoes = `
@@ -101,10 +105,15 @@ async function renderPedidos() {
             Cancelar
           </button>`;
       } else if (p.status === 'rota') {
-        acoes = `<button class="btn btn-sm" onclick="avancarPedido(${p.id})">
-          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-          Marcar como concluido
-        </button>`;
+        acoes = `
+          <button class="btn btn-sm" onclick="avancarPedido(${p.id})">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Marcar como concluido
+          </button>
+          <button class="btn btn-sm" style="background:var(--warn-light);color:var(--warn);border-color:#f5d9a0;" onclick="abrirModalFalha(${p.id})">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            Falha na entrega
+          </button>`;
       }
       return `<div class="pedido-card">
         <div class="pedido-header">
@@ -113,6 +122,7 @@ async function renderPedidos() {
               <span class="pedido-id">#${String(p.id).padStart(4,'0')}</span>
               ${badgeHtml(p.status)}
               ${pagHtml}
+              ${trocoHtml}
             </div>
             <div class="pedido-title" style="margin-top:4px;">${nomeExibido}${endCliente}</div>
             <div class="pedido-meta">
@@ -123,6 +133,7 @@ async function renderPedidos() {
           <div style="text-align:right;flex-shrink:0;">${totalHtml}</div>
         </div>
         ${timelineHtml(p.status)}
+        ${falhaHtml}
         <div class="pedido-itens">${itensResumo(p.itens)}</div>
         ${acoes ? `<div class="pedido-actions">${acoes}</div>` : ''}
       </div>`;
@@ -267,6 +278,31 @@ async function avancarPedido(id) {
   } catch(e) { alert('Erro ao atualizar status: ' + e.message); }
 }
 
+// ── Modal falha na entrega ────────────────────
+
+function abrirModalFalha(pedidoId) {
+  document.getElementById('modal-falha-pedido-id').value = pedidoId;
+  document.getElementById('modal-falha-motivo').value = '';
+  document.getElementById('modal-falha-erro').style.display = 'none';
+  document.getElementById('modal-falha-overlay').style.display = 'flex';
+}
+
+function fecharModalFalha() {
+  document.getElementById('modal-falha-overlay').style.display = 'none';
+}
+
+async function confirmarFalhaEntrega() {
+  const pedidoId = parseInt(document.getElementById('modal-falha-pedido-id').value);
+  const motivo = document.getElementById('modal-falha-motivo').value.trim();
+  const erro = document.getElementById('modal-falha-erro');
+  if (!motivo) { erro.textContent = 'Descreva o motivo da falha.'; erro.style.display = 'block'; return; }
+  try {
+    await registrarFalhaEntrega(pedidoId, motivo);
+    fecharModalFalha();
+    await Promise.all([renderMetricas(), renderPedidos()]);
+  } catch(e) { erro.textContent = 'Erro: ' + e.message; erro.style.display = 'block'; }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   popularModalEntregadores();
   document.getElementById('modal-overlay')?.addEventListener('click', e => {
@@ -274,5 +310,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('modal-edicao-overlay')?.addEventListener('click', e => {
     if (e.target === document.getElementById('modal-edicao-overlay')) fecharModalEdicao();
+  });
+  document.getElementById('modal-falha-overlay')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-falha-overlay')) fecharModalFalha();
   });
 });
