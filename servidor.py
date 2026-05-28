@@ -596,6 +596,98 @@ def editar_pedido(pid):
     return jsonify(pedido)
 
 
+
+# ─────────────────────────────────────────────
+# RELATORIOS
+# ─────────────────────────────────────────────
+
+@app.route('/api/relatorios', methods=['GET'])
+@login_required
+def relatorios():
+    with get_conn() as conn:
+
+        # ── Resumo geral ──────────────────────
+        total_pedidos = conn.execute(
+            "SELECT COUNT(*) FROM pedidos WHERE status NOT IN ('cancelado')"
+        ).fetchone()[0]
+
+        total_valor = conn.execute(
+            "SELECT COALESCE(SUM(total), 0) FROM pedidos WHERE status = 'concluido'"
+        ).fetchone()[0]
+
+        ticket_medio = (total_valor / conn.execute(
+            "SELECT COUNT(*) FROM pedidos WHERE status = 'concluido'"
+        ).fetchone()[0]) if conn.execute(
+            "SELECT COUNT(*) FROM pedidos WHERE status = 'concluido'"
+        ).fetchone()[0] > 0 else 0
+
+        por_status = {}
+        for row in conn.execute(
+            "SELECT status, COUNT(*) FROM pedidos GROUP BY status"
+        ).fetchall():
+            por_status[row[0]] = row[1]
+
+        # ── Formas de pagamento ───────────────
+        pagamentos = conn.execute("""
+            SELECT
+                fp.nome,
+                COUNT(p.id) AS qtd_pedidos,
+                COALESCE(SUM(p.total), 0) AS valor_total
+            FROM formas_pagamento fp
+            LEFT JOIN pedidos p
+                ON p.pagamento_id = fp.id
+                AND p.status NOT IN ('cancelado')
+            GROUP BY fp.id, fp.nome
+            ORDER BY qtd_pedidos DESC
+        """).fetchall()
+
+        # Pedidos sem forma de pagamento
+        sem_pag = conn.execute("""
+            SELECT COUNT(*) AS qtd, COALESCE(SUM(total), 0) AS valor
+            FROM pedidos
+            WHERE pagamento_id IS NULL AND status NOT IN ('cancelado')
+        """).fetchone()
+
+        lista_pag = [dict(r) for r in pagamentos]
+        if sem_pag[0] > 0:
+            lista_pag.append({
+                'nome': 'Nao informado',
+                'qtd_pedidos': sem_pag[0],
+                'valor_total': sem_pag[1]
+            })
+
+        # ── Itens mais vendidos ───────────────
+        itens_rows = conn.execute("""
+            SELECT
+                ip.descricao,
+                SUM(CASE WHEN ip.tipo IN ('peso','un') THEN CAST(ip.qtd AS REAL) ELSE 1 END) AS qtd_total,
+                SUM(
+                    CASE
+                        WHEN ip.tipo = 'valor' THEN CAST(ip.valor AS REAL)
+                        WHEN ip.tipo IN ('peso','un') AND ip.qtd != '' AND ip.valor != ''
+                            THEN CAST(ip.qtd AS REAL) * CAST(ip.valor AS REAL)
+                        ELSE 0
+                    END
+                ) AS valor_total,
+                COUNT(DISTINCT ip.pedido_id) AS em_pedidos
+            FROM itens_pedido ip
+            JOIN pedidos p ON p.id = ip.pedido_id
+            WHERE p.status NOT IN ('cancelado') AND ip.descricao != ''
+            GROUP BY LOWER(ip.descricao)
+            ORDER BY qtd_total DESC
+        """).fetchall()
+
+    return jsonify({
+        'resumo': {
+            'total_pedidos': total_pedidos,
+            'total_valor': round(total_valor, 2),
+            'ticket_medio': round(ticket_medio, 2),
+            'por_status': por_status
+        },
+        'pagamentos': lista_pag,
+        'itens': [dict(r) for r in itens_rows]
+    })
+
 # ─────────────────────────────────────────────
 # INICIALIZACAO
 # ─────────────────────────────────────────────

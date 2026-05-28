@@ -16,6 +16,7 @@ async function showPage(id) {
   if (id === 'entregadores') { await renderListaEntregadores(); }
   if (id === 'produtos')     { await renderListaProdutos(); }
   if (id === 'pagamentos')   { await renderListaPagamentos(); }
+  if (id === 'relatorios')   { await renderRelatorios(); }
 }
 
 async function fazerLogout() {

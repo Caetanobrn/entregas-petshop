@@ -108,3 +108,7 @@ async function registrarFalhaEntrega(id, motivo) {
 async function getMetricas() {
   return apiFetch('/metricas');
 }
+
+async function getRelatorios() {
+  return apiFetch('/relatorios');
+}
