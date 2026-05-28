@@ -147,7 +147,27 @@ def init_db():
                 id    INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome  TEXT NOT NULL UNIQUE
             );
+
+            CREATE TABLE IF NOT EXISTS produto_opcoes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                produto_id  INTEGER NOT NULL,
+                descricao   TEXT NOT NULL,
+                unidade     TEXT NOT NULL DEFAULT 'un',
+                valor       TEXT,
+                FOREIGN KEY (produto_id) REFERENCES produtos(id)
+            );
         """)
+
+        # Migrar produtos antigos: mover unidade/valor para produto_opcoes
+        tem_opcoes = conn.execute("SELECT COUNT(*) FROM produto_opcoes").fetchone()[0]
+        if tem_opcoes == 0:
+            prods = conn.execute("SELECT id, unidade, valor FROM produtos WHERE unidade IS NOT NULL").fetchall()
+            for p in prods:
+                if p["unidade"] or p["valor"]:
+                    conn.execute(
+                        "INSERT INTO produto_opcoes (produto_id, descricao, unidade, valor) VALUES (?, ?, ?, ?)",
+                        (p["id"], p["unidade"] or "padrao", p["unidade"] or "un", p["valor"] or "")
+                    )
 
         # Migracoes: adiciona colunas novas em bancos ja existentes
         colunas = [row[1] for row in conn.execute("PRAGMA table_info(pedidos)").fetchall()]
@@ -319,6 +339,18 @@ def deletar_entregador(eid):
 # PRODUTOS
 # ─────────────────────────────────────────────
 
+def produto_com_opcoes(conn, produto_id):
+    p = conn.execute('SELECT * FROM produtos WHERE id = ?', (produto_id,)).fetchone()
+    if not p:
+        return None
+    opcoes = conn.execute(
+        'SELECT * FROM produto_opcoes WHERE produto_id = ? ORDER BY id', (produto_id,)
+    ).fetchall()
+    d = dict(p)
+    d['opcoes'] = [dict(o) for o in opcoes]
+    return d
+
+
 @app.route('/api/produtos', methods=['GET'])
 @login_required
 def listar_produtos():
@@ -331,7 +363,15 @@ def listar_produtos():
             ).fetchall()
         else:
             rows = conn.execute('SELECT * FROM produtos ORDER BY nome').fetchall()
-    return jsonify([dict(r) for r in rows])
+        resultado = []
+        for r in rows:
+            opcoes = conn.execute(
+                'SELECT * FROM produto_opcoes WHERE produto_id = ? ORDER BY id', (r['id'],)
+            ).fetchall()
+            d = dict(r)
+            d['opcoes'] = [dict(o) for o in opcoes]
+            resultado.append(d)
+    return jsonify(resultado)
 
 
 @app.route('/api/produtos', methods=['POST'])
@@ -341,20 +381,68 @@ def criar_produto():
     if not d.get('nome'):
         return jsonify({'erro': 'Campo obrigatorio: nome'}), 400
     with get_conn() as conn:
-        cur = conn.execute(
-            'INSERT INTO produtos (nome, unidade, valor) VALUES (?, ?, ?)',
-            (d['nome'], d.get('unidade', 'un'), d.get('valor', ''))
-        )
-        row = conn.execute('SELECT * FROM produtos WHERE id = ?', (cur.lastrowid,)).fetchone()
-    return jsonify(dict(row)), 201
+        cur = conn.execute('INSERT INTO produtos (nome) VALUES (?)', (d['nome'].strip(),))
+        pid = cur.lastrowid
+        for op in d.get('opcoes', []):
+            if op.get('descricao'):
+                conn.execute(
+                    'INSERT INTO produto_opcoes (produto_id, descricao, unidade, valor) VALUES (?,?,?,?)',
+                    (pid, op['descricao'].strip(), op.get('unidade','un'), op.get('valor',''))
+                )
+        result = produto_com_opcoes(conn, pid)
+    return jsonify(result), 201
 
 
 @app.route('/api/produtos/<int:pid>', methods=['DELETE'])
 @login_required
 def deletar_produto(pid):
     with get_conn() as conn:
+        conn.execute('DELETE FROM produto_opcoes WHERE produto_id = ?', (pid,))
         conn.execute('DELETE FROM produtos WHERE id = ?', (pid,))
     return jsonify({'ok': True})
+
+
+# ── Opcoes de produto ─────────────────────────
+
+@app.route('/api/produtos/<int:pid>/opcoes', methods=['POST'])
+@login_required
+def adicionar_opcao(pid):
+    d = request.get_json()
+    if not d.get('descricao'):
+        return jsonify({'erro': 'Informe a descricao da opcao'}), 400
+    with get_conn() as conn:
+        conn.execute(
+            'INSERT INTO produto_opcoes (produto_id, descricao, unidade, valor) VALUES (?,?,?,?)',
+            (pid, d['descricao'].strip(), d.get('unidade','un'), d.get('valor',''))
+        )
+        result = produto_com_opcoes(conn, pid)
+    return jsonify(result), 201
+
+
+@app.route('/api/produtos/<int:pid>/opcoes/<int:oid>', methods=['PATCH'])
+@login_required
+def editar_opcao(pid, oid):
+    d = request.get_json()
+    campos, valores = [], []
+    if 'descricao' in d: campos.append('descricao = ?'); valores.append(d['descricao'].strip())
+    if 'unidade' in d:   campos.append('unidade = ?');   valores.append(d['unidade'])
+    if 'valor' in d:     campos.append('valor = ?');     valores.append(d['valor'])
+    if not campos:
+        return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
+    valores.append(oid)
+    with get_conn() as conn:
+        conn.execute(f"UPDATE produto_opcoes SET {', '.join(campos)} WHERE id = ?", valores)
+        result = produto_com_opcoes(conn, pid)
+    return jsonify(result)
+
+
+@app.route('/api/produtos/<int:pid>/opcoes/<int:oid>', methods=['DELETE'])
+@login_required
+def deletar_opcao(pid, oid):
+    with get_conn() as conn:
+        conn.execute('DELETE FROM produto_opcoes WHERE id = ? AND produto_id = ?', (oid, pid))
+        result = produto_com_opcoes(conn, pid)
+    return jsonify(result)
 
 
 # ─────────────────────────────────────────────
@@ -639,17 +727,12 @@ def editar_entregador(eid):
 @login_required
 def editar_produto(pid):
     d = request.get_json()
-    campos, valores = [], []
-    if 'nome' in d:    campos.append('nome = ?');    valores.append(d['nome'].strip())
-    if 'unidade' in d: campos.append('unidade = ?'); valores.append(d['unidade'])
-    if 'valor' in d:   campos.append('valor = ?');   valores.append(d['valor'])
-    if not campos:
-        return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
-    valores.append(pid)
+    if not d.get('nome'):
+        return jsonify({'erro': 'Informe o nome do produto'}), 400
     with get_conn() as conn:
-        conn.execute(f"UPDATE produtos SET {', '.join(campos)} WHERE id = ?", valores)
-        row = conn.execute('SELECT * FROM produtos WHERE id = ?', (pid,)).fetchone()
-    return jsonify(dict(row))
+        conn.execute('UPDATE produtos SET nome = ? WHERE id = ?', (d['nome'].strip(), pid))
+        result = produto_com_opcoes(conn, pid)
+    return jsonify(result)
 
 # ─────────────────────────────────────────────
 # RELATORIOS

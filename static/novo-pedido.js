@@ -120,24 +120,51 @@ async function onItemDescInput(id) {
   try {
     const matches = await searchProdutos(val);
     if (!matches.length) { ac.style.display = 'none'; return; }
-    ac.innerHTML = matches.map(p =>
-      `<div class="ac-item" onclick="selecionarProduto(${id},${p.id},'${p.nome.replace(/'/g,"\\'")}','${p.unidade}','${p.valor||''}')">
+    ac.innerHTML = matches.map(p => {
+      const sub = p.opcoes && p.opcoes.length ? `${p.opcoes.length} opcao${p.opcoes.length > 1 ? 'es' : ''}` : 'sem opcoes';
+      const opcoesData = encodeURIComponent(JSON.stringify(p.opcoes || []));
+      return `<div class="ac-item" onclick="selecionarProduto(${id},${p.id},'${p.nome.replace(/'/g,"\\'")}',JSON.parse(decodeURIComponent('${opcoesData}')))">
         <span>${p.nome}</span>
-        <small>${p.unidade}${p.valor ? ' &middot; R$ '+parseFloat(p.valor).toFixed(2) : ''}</small>
-      </div>`).join('');
+        <small>${sub}</small>
+      </div>`;
+    }).join('');
     ac.style.display = 'block';
   } catch(e) { ac.style.display = 'none'; }
 }
 
-function selecionarProduto(rowId, prodId, nome, unidade, valor) {
+function selecionarProduto(rowId, prodId, nome, opcoes) {
   document.getElementById('item-desc-' + rowId).value = nome;
   document.getElementById('item-ac-' + rowId).style.display = 'none';
-  document.getElementById('item-tag-' + rowId).innerHTML = '<span class="badge badge-cat">produto cadastrado</span>';
   itemRowsData[rowId].produtoId = prodId;
-  itemRowsData[rowId].valorUnitario = valor ? parseFloat(valor) : null;
-  const sel = document.getElementById('item-tipo-' + rowId);
-  sel.value = unidade === 'kg' ? 'peso' : 'un';
+  itemRowsData[rowId].opcaoDesc = null;
+
+  const tag = document.getElementById('item-tag-' + rowId);
+  if (opcoes && opcoes.length > 0) {
+    const optsHtml = opcoes.map(o =>
+      `<option value="${o.id}" data-desc="${o.descricao}" data-unidade="${o.unidade}" data-valor="${o.valor||''}">${o.descricao}${o.valor ? ' — R$ '+parseFloat(o.valor).toFixed(2) : ''}</option>`
+    ).join('');
+    tag.innerHTML = `<span class="badge badge-cat">produto cadastrado</span>
+      <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+        <label style="font-size:12px;color:var(--text-2);white-space:nowrap;">Opcao:</label>
+        <select id="item-opcao-${rowId}" onchange="selecionarOpcao(${rowId})" style="font-size:12px;padding:4px 8px;">
+          <option value="">Selecionar...</option>${optsHtml}
+        </select>
+      </div>`;
+  } else {
+    tag.innerHTML = '<span class="badge badge-cat">produto cadastrado</span>';
+  }
+  recalcularTotal();
+}
+
+function selecionarOpcao(rowId) {
+  const sel = document.getElementById('item-opcao-' + rowId);
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return;
+  const unidade = opt.dataset.unidade || 'un';
+  const valor = opt.dataset.valor || '';
+  document.getElementById('item-tipo-' + rowId).value = unidade === 'kg' ? 'peso' : 'un';
   if (valor) document.getElementById('item-vunit-' + rowId).value = parseFloat(valor).toFixed(2);
+  itemRowsData[rowId].opcaoDesc = opt.dataset.desc;
   recalcularTotal();
 }
 
@@ -169,8 +196,10 @@ function coletarItens() {
   document.querySelectorAll('#np-itens-body tr').forEach(tr => {
     const rowId = parseInt(tr.id.replace('item-row-', ''));
     if (!rowId) return;
-    const desc = (document.getElementById('item-desc-' + rowId)?.value || '').trim();
+    let desc = (document.getElementById('item-desc-' + rowId)?.value || '').trim();
     if (!desc) return;
+    const opcaoDesc = itemRowsData[rowId]?.opcaoDesc;
+    if (opcaoDesc) desc = `${desc} (${opcaoDesc})`;
     const tipo = document.getElementById('item-tipo-' + rowId)?.value;
     const qtd = document.getElementById('item-qtd-' + rowId)?.value || '';
     const vunit = document.getElementById('item-vunit-' + rowId)?.value || '';

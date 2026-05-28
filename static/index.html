@@ -282,22 +282,13 @@
 
     <div class="card">
       <div class="card-title">Cadastrar produto</div>
-      <div class="form-grid g3">
+      <div class="form-grid g2">
         <div class="field">
           <label for="p-nome">Nome do produto *</label>
-          <input id="p-nome" type="text" placeholder="Ex: Racao Golden 15kg">
+          <input id="p-nome" type="text" placeholder="Ex: Racao Golden">
         </div>
-        <div class="field">
-          <label for="p-unidade">Unidade de medida</label>
-          <select id="p-unidade">
-            <option value="kg">Quilograma (kg)</option>
-            <option value="un">Unidade (un)</option>
-            <option value="l">Litro (l)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="p-valor">Valor de referencia (R$)</label>
-          <input id="p-valor" type="number" step="0.01" min="0" placeholder="0,00">
+        <div class="field" style="display:flex;align-items:flex-end;">
+          <div style="font-size:12.5px;color:var(--text-3);padding-bottom:10px;">Apos salvar, adicione as opcoes disponives (tamanhos, precos, etc.)</div>
         </div>
       </div>
       <div class="btn-row">
@@ -545,22 +536,11 @@
   </div>
 
   <div id="modal-edit-produto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;padding:24px;">
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;box-shadow:var(--shadow-md);">
-      <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Editar produto</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:400px;box-shadow:var(--shadow-md);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Renomear produto</div>
       <input type="hidden" id="edit-p-id">
-      <div class="form-grid" style="margin-bottom:10px;">
+      <div class="form-grid" style="margin-bottom:16px;">
         <div class="field"><label>Nome *</label><input type="text" id="edit-p-nome"></div>
-      </div>
-      <div class="form-grid g2" style="margin-bottom:16px;">
-        <div class="field">
-          <label>Unidade</label>
-          <select id="edit-p-unidade">
-            <option value="kg">Quilograma (kg)</option>
-            <option value="un">Unidade (un)</option>
-            <option value="l">Litro (l)</option>
-          </select>
-        </div>
-        <div class="field"><label>Valor de referencia (R$)</label><input type="number" id="edit-p-valor" step="0.01" min="0"></div>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button class="btn" onclick="fecharEdicaoProduto()">Cancelar</button>
@@ -568,6 +548,53 @@
           <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
           Salvar
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Gerenciar opcoes de produto -->
+  <div id="modal-opcoes" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;align-items:center;justify-content:center;padding:24px;overflow-y:auto;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:520px;box-shadow:var(--shadow-md);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:2px;" id="modal-opcoes-titulo"></div>
+      <div style="font-size:13px;color:var(--text-3);margin-bottom:16px;">Gerencie as opcoes disponiveis para este produto</div>
+
+      <div id="modal-opcoes-lista" style="margin-bottom:16px;"></div>
+
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:10px;" id="modal-opcoes-form-label">Nova opcao</div>
+        <div class="form-grid g3" style="margin-bottom:8px;">
+          <div class="field" style="grid-column:span 1;">
+            <label>Descricao *</label>
+            <input type="text" id="modal-opcoes-desc" placeholder="Ex: 15kg, 500g, P">
+          </div>
+          <div class="field">
+            <label>Unidade</label>
+            <select id="modal-opcoes-unidade">
+              <option value="un">Unidade</option>
+              <option value="kg">Kg</option>
+              <option value="l">Litro</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Valor (R$)</label>
+            <input type="number" id="modal-opcoes-valor" placeholder="0,00" step="0.01" min="0">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" id="btn-add-opcao" onclick="adicionarOpcao()">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Adicionar opcao
+          </button>
+          <button class="btn btn-primary btn-sm" id="btn-salvar-edicao-opcao" style="display:none;" onclick="salvarEdicaoOpcao()">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Salvar edicao
+          </button>
+          <button class="btn btn-sm" id="btn-cancelar-edicao-opcao" style="display:none;" onclick="cancelarEdicaoOpcao()">Cancelar</button>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;">
+        <button class="btn" onclick="fecharGerenciarOpcoes()">Fechar</button>
       </div>
     </div>
   </div>

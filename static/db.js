@@ -50,14 +50,29 @@ async function getProdutos() {
 async function searchProdutos(termo) {
   return apiFetch(`/produtos?q=${encodeURIComponent(termo)}`);
 }
-async function addProduto(nome, unidade, valor) {
-  return apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, unidade, valor }) });
+async function addProduto(nome, opcoes) {
+  return apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, opcoes: opcoes || [] }) });
 }
 async function editarProduto(id, dados) {
   return apiFetch(`/produtos/${id}`, { method: 'PATCH', body: JSON.stringify(dados) });
 }
 async function deleteProduto(id) {
   return apiFetch(`/produtos/${id}`, { method: 'DELETE' });
+}
+async function addOpcao(produtoId, descricao, unidade, valor) {
+  return apiFetch(`/produtos/${produtoId}/opcoes`, {
+    method: 'POST',
+    body: JSON.stringify({ descricao, unidade, valor })
+  });
+}
+async function editarOpcao(produtoId, opcaoId, dados) {
+  return apiFetch(`/produtos/${produtoId}/opcoes/${opcaoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(dados)
+  });
+}
+async function deletarOpcao(produtoId, opcaoId) {
+  return apiFetch(`/produtos/${produtoId}/opcoes/${opcaoId}`, { method: 'DELETE' });
 }
 
 // ── Formas de pagamento ───────────────────────
