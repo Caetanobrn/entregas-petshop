@@ -504,6 +504,74 @@
     </div>
   </div>
 
+  <!-- MODAIS: Edicao de cliente, entregador e produto -->
+  <div id="modal-edit-cliente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;padding:24px;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;box-shadow:var(--shadow-md);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Editar cliente</div>
+      <input type="hidden" id="edit-c-id">
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="field"><label>Nome *</label><input type="text" id="edit-c-nome"></div>
+      </div>
+      <div class="form-grid g2" style="margin-bottom:16px;">
+        <div class="field"><label>Telefone *</label><input type="text" id="edit-c-tel"></div>
+        <div class="field"><label>Endereco *</label><input type="text" id="edit-c-end"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn" onclick="fecharEdicaoCliente()">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarEdicaoCliente()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-edit-entregador" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;padding:24px;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:400px;box-shadow:var(--shadow-md);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Editar entregador</div>
+      <input type="hidden" id="edit-e-id">
+      <div class="form-grid g2" style="margin-bottom:16px;">
+        <div class="field"><label>Nome *</label><input type="text" id="edit-e-nome"></div>
+        <div class="field"><label>Telefone *</label><input type="text" id="edit-e-tel"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn" onclick="fecharEdicaoEntregador()">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarEdicaoEntregador()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-edit-produto" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;padding:24px;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;width:100%;max-width:440px;box-shadow:var(--shadow-md);">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Editar produto</div>
+      <input type="hidden" id="edit-p-id">
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div class="field"><label>Nome *</label><input type="text" id="edit-p-nome"></div>
+      </div>
+      <div class="form-grid g2" style="margin-bottom:16px;">
+        <div class="field">
+          <label>Unidade</label>
+          <select id="edit-p-unidade">
+            <option value="kg">Quilograma (kg)</option>
+            <option value="un">Unidade (un)</option>
+            <option value="l">Litro (l)</option>
+          </select>
+        </div>
+        <div class="field"><label>Valor de referencia (R$)</label><input type="number" id="edit-p-valor" step="0.01" min="0"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="btn" onclick="fecharEdicaoProduto()">Cancelar</button>
+        <button class="btn btn-primary" onclick="confirmarEdicaoProduto()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- SCRIPTS (ordem importa: db antes dos modulos, nav por ultimo) -->
   <script src="db.js"></script>
   <script src="pedidos.js"></script>

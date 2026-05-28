@@ -22,6 +22,9 @@ async function getClientes(termo) {
 async function addCliente(nome, telefone, endereco) {
   return apiFetch('/clientes', { method: 'POST', body: JSON.stringify({ nome, telefone, endereco }) });
 }
+async function editarCliente(id, dados) {
+  return apiFetch(`/clientes/${id}`, { method: 'PATCH', body: JSON.stringify(dados) });
+}
 async function deleteCliente(id) {
   return apiFetch(`/clientes/${id}`, { method: 'DELETE' });
 }
@@ -32,6 +35,9 @@ async function getEntregadores() {
 }
 async function addEntregador(nome, telefone) {
   return apiFetch('/entregadores', { method: 'POST', body: JSON.stringify({ nome, telefone }) });
+}
+async function editarEntregador(id, dados) {
+  return apiFetch(`/entregadores/${id}`, { method: 'PATCH', body: JSON.stringify(dados) });
 }
 async function deleteEntregador(id) {
   return apiFetch(`/entregadores/${id}`, { method: 'DELETE' });
@@ -46,6 +52,9 @@ async function searchProdutos(termo) {
 }
 async function addProduto(nome, unidade, valor) {
   return apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, unidade, valor }) });
+}
+async function editarProduto(id, dados) {
+  return apiFetch(`/produtos/${id}`, { method: 'PATCH', body: JSON.stringify(dados) });
 }
 async function deleteProduto(id) {
   return apiFetch(`/produtos/${id}`, { method: 'DELETE' });

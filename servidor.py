@@ -597,6 +597,60 @@ def editar_pedido(pid):
 
 
 
+
+# ─────────────────────────────────────────────
+# EDICAO DE CLIENTES, ENTREGADORES E PRODUTOS
+# ─────────────────────────────────────────────
+
+@app.route('/api/clientes/<int:cid>', methods=['PATCH'])
+@login_required
+def editar_cliente(cid):
+    d = request.get_json()
+    campos, valores = [], []
+    if 'nome' in d:     campos.append('nome = ?');     valores.append(d['nome'].strip())
+    if 'telefone' in d: campos.append('telefone = ?'); valores.append(d['telefone'].strip())
+    if 'endereco' in d: campos.append('endereco = ?'); valores.append(d['endereco'].strip())
+    if not campos:
+        return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
+    valores.append(cid)
+    with get_conn() as conn:
+        conn.execute(f"UPDATE clientes SET {', '.join(campos)} WHERE id = ?", valores)
+        row = conn.execute('SELECT * FROM clientes WHERE id = ?', (cid,)).fetchone()
+    return jsonify(dict(row))
+
+
+@app.route('/api/entregadores/<int:eid>', methods=['PATCH'])
+@login_required
+def editar_entregador(eid):
+    d = request.get_json()
+    campos, valores = [], []
+    if 'nome' in d:     campos.append('nome = ?');     valores.append(d['nome'].strip())
+    if 'telefone' in d: campos.append('telefone = ?'); valores.append(d['telefone'].strip())
+    if not campos:
+        return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
+    valores.append(eid)
+    with get_conn() as conn:
+        conn.execute(f"UPDATE entregadores SET {', '.join(campos)} WHERE id = ?", valores)
+        row = conn.execute('SELECT * FROM entregadores WHERE id = ?', (eid,)).fetchone()
+    return jsonify(dict(row))
+
+
+@app.route('/api/produtos/<int:pid>', methods=['PATCH'])
+@login_required
+def editar_produto(pid):
+    d = request.get_json()
+    campos, valores = [], []
+    if 'nome' in d:    campos.append('nome = ?');    valores.append(d['nome'].strip())
+    if 'unidade' in d: campos.append('unidade = ?'); valores.append(d['unidade'])
+    if 'valor' in d:   campos.append('valor = ?');   valores.append(d['valor'])
+    if not campos:
+        return jsonify({'erro': 'Nenhum campo para atualizar'}), 400
+    valores.append(pid)
+    with get_conn() as conn:
+        conn.execute(f"UPDATE produtos SET {', '.join(campos)} WHERE id = ?", valores)
+        row = conn.execute('SELECT * FROM produtos WHERE id = ?', (pid,)).fetchone()
+    return jsonify(dict(row))
+
 # ─────────────────────────────────────────────
 # RELATORIOS
 # ─────────────────────────────────────────────
